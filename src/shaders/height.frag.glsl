@@ -5,6 +5,7 @@ uniform float uMinAltitude;
 uniform bool uContour;
 uniform vec3 uPolygonPoints[MAX_POLYGON_VERTICES];
 uniform int uNumPolygonPoints;
+uniform sampler2D uColorRamp;
 
 varying vec3 vWorldPosition;
 varying vec3 vPosition;
@@ -44,7 +45,9 @@ void main() {
     float normalizedHeight = (height - uMinAltitude * 0.1) / (uMaxAltitude - uMinAltitude * 0.1) / 0.20 + 0.3;
     float contour = step(0.001, sin(vPosition.y * 20.0) * 0.5 + 0.5);
 
+    vec4 color = texture2D(uColorRamp, vec2(0.5, 1.0 -normalizedHeight));
+
     float value = uContour ? min(normalizedHeight, contour) : normalizedHeight;
 
-    gl_FragColor = vec4(value, value, value, 1.0);
+    gl_FragColor = color;
 }
