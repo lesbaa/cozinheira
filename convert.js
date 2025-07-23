@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const geojson = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'public/cozinheira.geojson'), 'utf8'));
+const geojson = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'public/cozinheira.json'), 'utf8'));
 
 const points = geojson.features.map(feature => feature.geometry.coordinates);
 

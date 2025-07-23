@@ -10,7 +10,7 @@ export default function App() {
 
   return (
     <>
-    <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000 }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000, display: 'none' }}>
       <div>
       <input type="checkbox" checked={showContour} onChange={(e) => setShowContour(v => !v)} />
       <label htmlFor="showContour">Show Contour</label>

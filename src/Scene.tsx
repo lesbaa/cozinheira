@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import delaunate from './delaunate';
 import cozinheira from '../public/cozinheira-multi-point.json' with { type: 'json' };
-import { BufferAttribute, BufferGeometry, CanvasTexture, DoubleSide, Mesh, MeshNormalMaterial, Points, ShaderMaterial, Texture, Vector2, Vector3 } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, FloatType, GLSL3, Mesh, MeshBasicMaterial, MeshNormalMaterial, Points, RGBAFormat, ShaderMaterial, Texture, Vector2, Vector3 } from 'three';
 import vertexShader from './shaders/height.vert.glsl?raw';
 import fragmentShader from './shaders/height.frag.glsl?raw';
+import fragmentShaderPicker from './shaders/picker.frag.glsl?raw';
 import { projectLngLatToMeters } from './project';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useFBO } from '@react-three/drei';
+import { ConvexGeometry } from 'three-stdlib';
 
 const ramp = [
   {
@@ -57,6 +59,19 @@ export default function Scene({
 
     return texture;
   }, [])
+  
+
+  const camera = useThree((state) => state.camera);
+  const gl = useThree((state) => state.gl);
+  const viewport = useThree((state) => state.viewport);
+  const dpr = useThree((state) => state.gl.getPixelRatio());
+
+  const target = useFBO(window.innerWidth * dpr, window.innerHeight * dpr, {
+    type: FloatType,
+    format: RGBAFormat,
+  });
+
+  const scene = useThree((state) => state.scene);
 
   useEffect(() => {
     if (!colorRampCanvas) return;
@@ -78,11 +93,12 @@ export default function Scene({
   const terrain = useMemo(() => {
     const {
       positions: vertices,
+      lngLats,
       indices,
       maxAltitude,
       minAltitude,
     } = delaunate(cozinheira as GeoJSON.FeatureCollection<GeoJSON.Geometry>, 1, cozinheira.features[0].geometry.coordinates as [number, number, number], true);
-    
+    console.log(maxAltitude, minAltitude)
     const geom = new BufferGeometry();
 
     geom.setIndex(indices);
@@ -114,7 +130,26 @@ export default function Scene({
       side: DoubleSide,
     })
 
-    return { geom, material };
+    const pickingMaterial = new ShaderMaterial({
+      glslVersion: GLSL3,
+      vertexShader,
+      fragmentShader: fragmentShaderPicker,
+      uniforms: {
+        uMaxAltitude: { value: maxAltitude },
+        uMinAltitude: { value: minAltitude },
+        uOriginAltitude: { value: originCoords[2] },
+      },
+      side: DoubleSide,
+    })
+
+
+    const cubes = []
+
+    for (let i = 0; i < vertices.length; i += 3) {
+      cubes.push({ position: new Vector3(vertices[i], vertices[i + 1], vertices[i + 2]), lngLatAlt: lngLats[i / 3] });
+    }
+
+    return { geom, material, cubes, pickingMaterial };
   }, [colorRampTexture]);
 
 
@@ -125,80 +160,102 @@ export default function Scene({
     }
   }, [showContour, terrain.material])
 
-
-  const target = useFBO();
-
-  const camera = useThree((state) => state.camera);
-  const gl = useThree((state) => state.gl);
-
-  const scene = useThree((state) => state.scene);
-
   // Store mouse position and interpolated height
   const [mouseScreenPos, setMouseScreenPos] = useState(new Vector2());
   const [interpolatedHeight, setInterpolatedHeight] = useState(null);
 
+  const pixelReadBuffer = useMemo(() => new Float32Array(4), []);
+
   // Event handler for mouse move
   const onMouseMove = useCallback((event: MouseEvent) => {
     setMouseScreenPos(new Vector2(event.clientX, event.clientY));
-  }, []);
+    console.log(event.clientX, event.clientY, pixelReadBuffer)
+  }, [dpr, pixelReadBuffer]);
 
   useEffect(() => {
     // Attach listener to the canvas element
     const canvas = gl.domElement;
     canvas.addEventListener('mousemove', onMouseMove);
     return () => canvas.removeEventListener('mousemove', onMouseMove);
-  }, [gl.domElement, onMouseMove]);
+  }, [gl.domElement, onMouseMove, viewport]);
 
   // Buffer to read pixel data
-  const pixelReadBuffer = useMemo(() => new Float32Array(4), []);
-
 
   useFrame((state) => {
     let oldMaterial: ShaderMaterial | null = null;
     const terrainMesh = scene.getObjectByName("terrain-mesh") as Mesh;
-    const terrainPoints = scene.getObjectByName("terrain-points") as Points;
 
-    if (terrainMesh) {
+    if (terrainMesh?.material) {
       oldMaterial = terrainMesh.material as ShaderMaterial;
-      terrainMesh.material = terrain.material;
-      terrainPoints.visible = false;
+      terrainMesh.material = terrain.pickingMaterial;
+      terrainMesh.material.needsUpdate = true;
+      // terrainPoints.visible = false;
     }
 
     state.gl.setRenderTarget(target)
-    state.gl.render(scene, camera)
-    state.gl.setRenderTarget(null)
 
+
+    const dpr = state.gl.getPixelRatio();
+
+    camera.setViewOffset(
+      window.innerWidth * dpr,
+      window.innerHeight * dpr,
+      Math.floor( mouseScreenPos.x * dpr ),
+      Math.floor( mouseScreenPos.y * dpr ),
+      1,
+      1
+    );
+
+    const oldBackground = scene.background;
+    scene.background = new Color(1, 0, 0);
+    state.gl.render(scene, camera)
+
+    scene.background = oldBackground;
+    camera.clearViewOffset();
+    // console.log(target)
     gl.readRenderTargetPixels(
       target,
-      mouseScreenPos.x,
-      mouseScreenPos.y,
+      0,
+      0,
       1, // width
       1, // height
       pixelReadBuffer // The Float32Array to store the RGBA pixel data
     );
 
-    // const interpolatedHeight = pixelReadBuffer[2];
-
-    console.log(pixelReadBuffer);
-
     if (terrainMesh) {
       terrainMesh.material = oldMaterial!;
-      terrainPoints.visible = true;
+      // terrainPoints.visible = true;
     }
+
+    state.gl.setRenderTarget(null)
+
   })
-
-
 
   return (
     <>
     <directionalLight position={[10, 10, 5]} intensity={1} />
-    {showPoints && <points
+    <points
+      visible={false}
       name="terrain-points"
       renderOrder={99} geometry={terrain.geom}
       // onPointerEnter={(e) => console.log(e.unprojectedPoint)}
-    />}
-    <mesh name="terrain-mesh" renderOrder={1} geometry={terrain.geom} material={terrain.material} />
+      // onPointerEnter={(e) => console.log(e.unprojectedPoint)}
+    />
+    <mesh
+      name="terrain-mesh"
+      renderOrder={1}
+      geometry={terrain.geom}
+      material={terrain.material}
+    />
     {/* <mesh renderOrder={1} geometry={terrain.geom} material={new MeshNormalMaterial({ side: DoubleSide })} /> */}
+    {/* {
+      terrain.cubes.map((cube, i) => (
+        <mesh key={i} position={cube.position} renderOrder={1} geometry={new BoxGeometry(1, 1, 1)} material={new MeshBasicMaterial({ color: 'red' })}
+          userData={{ lngLatAlt: cube.lngLatAlt }}
+          onClick={() => console.log(cube.lngLatAlt)}
+        />
+      ))
+    } */}
     </>
   )
 }
