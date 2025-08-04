@@ -10,21 +10,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.1.12",
-    "@deck.gl/extensions": "^9.1.12",
-    "@deck.gl/geo-layers": "^9.1.12",
-    "@deck.gl/layers": "^9.1.12",
-    "@deck.gl/mesh-layers": "^9.1.12",
-    "@deck.gl/react": "^9.1.12",
     "@maptiler/client": "^2.3.2",
     "@maptiler/sdk": "^3.4.1",
     "@react-three/drei": "^10.3.0",
     "@react-three/fiber": "^9.1.4",
+    "@turf/turf": "^7.2.0",
     "@types/delaunator": "^5.0.3",
+    "@types/shpjs": "^3.4.7",
     "@types/three": "^0.177.0",
+    "@types/turf": "^3.5.32",
     "delaunator": "^5.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "shpjs": "^6.1.0",
     "three": "^0.177.0"
   },
   "devDependencies": {

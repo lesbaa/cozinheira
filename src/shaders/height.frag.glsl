@@ -3,12 +3,16 @@ precision highp float;
 uniform float uMaxAltitude;
 uniform float uMinAltitude;
 uniform bool uContour;
+uniform vec4 uContourColor;
+uniform bool uShowSlope;
+
 uniform vec3 uPolygonPoints[MAX_POLYGON_VERTICES];
 uniform int uNumPolygonPoints;
 uniform sampler2D uColorRamp;
 
 varying vec3 vWorldPosition;
 varying vec3 vPosition;
+varying vec3 vNormal;
 
 // Point in polygon test using the winding number algorithm.
 // This is robust for simple, complex, and self-intersecting polygons.
@@ -41,13 +45,18 @@ void main() {
         discard;
     }
 
+    if (uShowSlope) {
+      vec3 up = vec3(1.0, 0.0, 0.0);
+      float slope = (1.0 - dot(abs(vNormal), up)) * 0.5;
+      gl_FragColor = vec4(slope, slope, slope, 1.0);
+      return;
+    }
+
     float height = vPosition.y;
     float normalizedHeight = (height - uMinAltitude * 0.1) / (uMaxAltitude - uMinAltitude * 0.1) / 0.20 + 0.3;
-    float contour = step(0.001, sin(vPosition.y * 20.0) * 0.5 + 0.5);
+    float contour = smoothstep(0.0001, 0.001, sin(vPosition.y * 20.0) * 0.5 + 0.5);
 
     vec4 color = texture2D(uColorRamp, vec2(0.5, 1.0 -normalizedHeight));
 
-    float value = uContour ? min(normalizedHeight, contour) : normalizedHeight;
-
-    gl_FragColor = color;
+    gl_FragColor = mix(uContourColor, color, uContour ? contour : 1.0);
 }

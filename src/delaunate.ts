@@ -5,18 +5,22 @@ import { Vector3 } from 'three';
 
 const allowedGeometryTypes = ['MultiPoint', 'LineString', 'Polygon'];
 
-export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geometry>, featureIndex: number = 0, origin: [number, number, number], cullOddAltitudes: boolean = false) {
+export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geometry>, featureName: string = 'topography', cullOddAltitudes: boolean = false) {
   const points = [];
   const altitudes: Record<string, number> = {};
   const vertices: number[] = [];
   const normals: number[] = [];
 
+  const featureIndex = geojson.features.findIndex(feature => feature.properties?.name === featureName);
+
+  const originIndex = geojson.features.findIndex(feature => feature.properties?.pointType === 'origin');
+  const origin = geojson.features[originIndex].geometry.coordinates;
+  
   const originVec2: [number, number] = [origin[0], origin[1]];
 
   if (!allowedGeometryTypes.includes(geojson.features[featureIndex].geometry.type) || !geojson.features[featureIndex].geometry.coordinates) {
     throw new Error('Invalid geometry type');
   }
-
   const coordsArray: Array<[number, number, number]> = geojson.features[featureIndex].geometry.coordinates;
 
   for (const coords of coordsArray) {
@@ -27,9 +31,9 @@ export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geo
     const thisIndex = coordsArray.indexOf(coords);
     const averageAltitudeOfSurroundingPoints = coordsArray
       .slice(thisIndex - 6, thisIndex + 6)
-      .reduce((acc, curr) => acc + curr[2], 0) / 6;
+      .reduce((acc, curr) => acc + curr[2], 0) / 12;
 
-    if (cullOddAltitudes && isCloseTo(averageAltitudeOfSurroundingPoints, coords[2], 500)) {
+    if (cullOddAltitudes && !isCloseTo(averageAltitudeOfSurroundingPoints, coords[2], 50)) {
       continue;
     }
 
@@ -57,6 +61,7 @@ export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geo
 
     vertices.push(-x, y, z);
   }
+
 
   for (let i = 0; i < indices.length; i += 3) {
     const v0 = [vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2]];

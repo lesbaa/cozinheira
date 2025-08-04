@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import delaunate from './delaunate';
-import cozinheira from '../public/cozinheira-multi-point.json' with { type: 'json' };
+import cozinheira from './data/cozinheira-multi-point.json' with { type: 'json' };
 import { BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, FloatType, GLSL3, Mesh, MeshBasicMaterial, MeshNormalMaterial, Points, RGBAFormat, ShaderMaterial, Texture, Vector2, Vector3 } from 'three';
 import vertexShader from './shaders/height.vert.glsl?raw';
 import fragmentShader from './shaders/height.frag.glsl?raw';
 import fragmentShaderPicker from './shaders/picker.frag.glsl?raw';
-import { projectLngLatToMeters } from './project';
-import { useFrame, useThree } from '@react-three/fiber';
+import { convertMetersToLngLat, projectLngLatToMeters } from './project';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useFBO } from '@react-three/drei';
-import { ConvexGeometry } from 'three-stdlib';
+import type { LngLat } from '@maptiler/sdk';
+import Features from './components/features';
+
+export type ScenePointerEvent = ThreeEvent<PointerEvent> & { lngLat: LngLat, altitude: number };
 
 const ramp = [
   {
@@ -32,14 +35,18 @@ const ramp = [
 export default function Scene({
   colorRamp = ramp,
   showContour,
+  showSlope,
   showPoints,
+  onMouseMove,
 }: {
   colorRamp?: {
     color: string;
     value: number;
   }[];
   showContour: boolean;
+  showSlope: boolean;
   showPoints: boolean;
+  onMouseMove: (event: ScenePointerEvent) => void;
 }) {
 
   const colorRampCanvas = useMemo(() => {
@@ -94,16 +101,19 @@ export default function Scene({
     const {
       positions: vertices,
       lngLats,
+      normals,
       indices,
       maxAltitude,
       minAltitude,
-    } = delaunate(cozinheira as GeoJSON.FeatureCollection<GeoJSON.Geometry>, 1, cozinheira.features[0].geometry.coordinates as [number, number, number], true);
-    console.log(maxAltitude, minAltitude)
-    const geom = new BufferGeometry();
+      origin,
+    } = delaunate(cozinheira as GeoJSON.FeatureCollection<GeoJSON.Geometry>, 'topography', true);
 
+    const geom = new BufferGeometry();
     geom.setIndex(indices);
     geom.setAttribute('position', new BufferAttribute(vertices, 3));
+    geom.setAttribute('normal', new BufferAttribute(normals, 3));
     geom.computeVertexNormals();
+
 
     const originCoords = cozinheira.features.find((f) => f.properties?.pointType === 'origin')?.geometry.coordinates as [number, number, number] ?? [0,0,0];
     const originLngLat: [number, number] = [originCoords[0], originCoords[1]];
@@ -123,6 +133,8 @@ export default function Scene({
         uMaxAltitude: { value: maxAltitude },
         uMinAltitude: { value: minAltitude },
         uContour: { value: false },
+        uContourColor: { value: new Color('white') },
+        uShowSlope: { value: true },
         uNumPolygonPoints: { value: perimiterVertices.length },
         uPolygonPoints: { value: perimiterVertices },
         uColorRamp: { value: colorRampTexture },
@@ -149,16 +161,17 @@ export default function Scene({
       cubes.push({ position: new Vector3(vertices[i], vertices[i + 1], vertices[i + 2]), lngLatAlt: lngLats[i / 3] });
     }
 
-    return { geom, material, cubes, pickingMaterial };
+    return { geom, material, cubes, pickingMaterial, origin };
   }, [colorRampTexture]);
 
 
   useEffect(() => {
     if (terrain.material) {
-      terrain.material.uniforms.uContour.value = showContour;
+      terrain.material.uniforms.uContour.value = showContour ? 1 : 0;
       terrain.material.needsUpdate = true;
+      terrain.material.uniforms.uShowSlope.value = showSlope ? 1 : 0;
     }
-  }, [showContour, terrain.material])
+  }, [showContour, terrain.material, showSlope])
 
   // Store mouse position and interpolated height
   const [mouseScreenPos, setMouseScreenPos] = useState(new Vector2());
@@ -167,17 +180,23 @@ export default function Scene({
   const pixelReadBuffer = useMemo(() => new Float32Array(4), []);
 
   // Event handler for mouse move
-  const onMouseMove = useCallback((event: MouseEvent) => {
+  const handleMouseMove = useCallback((event: ScenePointerEvent) => {
     setMouseScreenPos(new Vector2(event.clientX, event.clientY));
-    console.log(event.clientX, event.clientY, pixelReadBuffer)
-  }, [dpr, pixelReadBuffer]);
+    const alt = pixelReadBuffer[0];
+    const lngLat = convertMetersToLngLat(terrain.origin, { x: event.point.x, y: event.point.y });
+    onMouseMove?.({
+      ...event,
+      lngLat,
+      altitude: alt,
+    });
+  }, [onMouseMove, pixelReadBuffer, terrain.origin]);
 
-  useEffect(() => {
-    // Attach listener to the canvas element
-    const canvas = gl.domElement;
-    canvas.addEventListener('mousemove', onMouseMove);
-    return () => canvas.removeEventListener('mousemove', onMouseMove);
-  }, [gl.domElement, onMouseMove, viewport]);
+  // useEffect(() => {
+  //   // Attach listener to the canvas element
+  //   const canvas = gl.domElement;
+  //   canvas.addEventListener('mousemove', handleMouseMove);
+  //   return () => canvas.removeEventListener('mousemove', handleMouseMove);
+  // }, [gl.domElement, handleMouseMove, viewport]);
 
   // Buffer to read pixel data
 
@@ -193,7 +212,6 @@ export default function Scene({
     }
 
     state.gl.setRenderTarget(target)
-
 
     const dpr = state.gl.getPixelRatio();
 
@@ -212,19 +230,18 @@ export default function Scene({
 
     scene.background = oldBackground;
     camera.clearViewOffset();
-    // console.log(target)
+
     gl.readRenderTargetPixels(
       target,
       0,
       0,
-      1, // width
-      1, // height
-      pixelReadBuffer // The Float32Array to store the RGBA pixel data
+      1,
+      1,
+      pixelReadBuffer
     );
 
     if (terrainMesh) {
       terrainMesh.material = oldMaterial!;
-      // terrainPoints.visible = true;
     }
 
     state.gl.setRenderTarget(null)
@@ -235,7 +252,7 @@ export default function Scene({
     <>
     <directionalLight position={[10, 10, 5]} intensity={1} />
     <points
-      visible={false}
+      visible={showPoints}
       name="terrain-points"
       renderOrder={99} geometry={terrain.geom}
       // onPointerEnter={(e) => console.log(e.unprojectedPoint)}
@@ -243,19 +260,18 @@ export default function Scene({
     />
     <mesh
       name="terrain-mesh"
+      onPointerMove={handleMouseMove}
       renderOrder={1}
       geometry={terrain.geom}
       material={terrain.material}
     />
+
+    <Features
+      origin={terrain.origin}
+    />
+
     {/* <mesh renderOrder={1} geometry={terrain.geom} material={new MeshNormalMaterial({ side: DoubleSide })} /> */}
-    {/* {
-      terrain.cubes.map((cube, i) => (
-        <mesh key={i} position={cube.position} renderOrder={1} geometry={new BoxGeometry(1, 1, 1)} material={new MeshBasicMaterial({ color: 'red' })}
-          userData={{ lngLatAlt: cube.lngLatAlt }}
-          onClick={() => console.log(cube.lngLatAlt)}
-        />
-      ))
-    } */}
+
     </>
   )
 }
