@@ -1,6 +1,6 @@
-varying vec3 vWorldPosition;
-varying vec3 vPosition;
-varying vec3 vNormal;
+out vec3 vWorldPosition;
+out vec3 vPosition;
+out vec3 vNormal;
 
 void main() {
     vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;

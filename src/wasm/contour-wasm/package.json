@@ -1,0 +1,33 @@
+{
+  "name": "contour-wasm",
+  "collaborators": [
+    "Matthieu Viry <matthieu.viry@cnrs.fr>"
+  ],
+  "description": "JS/WASM library to compute isolines and isobands (using marching squares algorithm)",
+  "version": "0.5.0",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mthh/contour-wasm"
+  },
+  "files": [
+    "contour_wasm_bg.wasm",
+    "contour_wasm.js",
+    "contour_wasm_bg.js",
+    "contour_wasm.d.ts"
+  ],
+  "module": "contour_wasm.js",
+  "homepage": "https://github.com/mthh/contour-wasm",
+  "types": "contour_wasm.d.ts",
+  "sideEffects": [
+    "./contour_wasm.js",
+    "./snippets/*"
+  ],
+  "keywords": [
+    "contour",
+    "polygon",
+    "isobands",
+    "marching-squares",
+    "geojson"
+  ]
+}

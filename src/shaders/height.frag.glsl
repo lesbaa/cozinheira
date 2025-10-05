@@ -3,16 +3,18 @@ precision highp float;
 uniform float uMaxAltitude;
 uniform float uMinAltitude;
 uniform bool uContour;
-uniform vec4 uContourColor;
+uniform vec3 uContourColor;
 uniform bool uShowSlope;
 
 uniform vec3 uPolygonPoints[MAX_POLYGON_VERTICES];
 uniform int uNumPolygonPoints;
 uniform sampler2D uColorRamp;
 
-varying vec3 vWorldPosition;
-varying vec3 vPosition;
-varying vec3 vNormal;
+in vec3 vWorldPosition;
+in vec3 vPosition;
+in vec3 vNormal;
+
+out vec4 outColor;
 
 // Point in polygon test using the winding number algorithm.
 // This is robust for simple, complex, and self-intersecting polygons.
@@ -39,16 +41,19 @@ bool isPointInPolygon2D(vec2 p, vec3 polygonVertices[MAX_POLYGON_VERTICES], int 
 void main() {
     // Since we know the polygon and terrain lie on the XZ plane,
     // we can perform a simple 2D check using the .xz components.
+
+   vec4 contourColorWithAlpha = vec4(uContourColor.r, uContourColor.g, uContourColor.b, 1.0);
+
     vec2 pointToTest = vPosition.xz;
 
-    if (uNumPolygonPoints > 0 && !isPointInPolygon2D(pointToTest, uPolygonPoints, uNumPolygonPoints)) {
-        discard;
-    }
+    // if (uNumPolygonPoints > 0 && !isPointInPolygon2D(pointToTest, uPolygonPoints, uNumPolygonPoints)) {
+    //     discard;
+    // }
 
     if (uShowSlope) {
       vec3 up = vec3(1.0, 0.0, 0.0);
       float slope = (1.0 - dot(abs(vNormal), up)) * 0.5;
-      gl_FragColor = vec4(slope, slope, slope, 1.0);
+      outColor = vec4(slope, slope, slope, 1.0);
       return;
     }
 
@@ -58,5 +63,5 @@ void main() {
 
     vec4 color = texture2D(uColorRamp, vec2(0.5, 1.0 -normalizedHeight));
 
-    gl_FragColor = mix(uContourColor, color, uContour ? contour : 1.0);
+    outColor = mix(contourColorWithAlpha, color, uContour ? contour : 1.0);
 }

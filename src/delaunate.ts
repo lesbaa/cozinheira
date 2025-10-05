@@ -1,7 +1,7 @@
 import Delaunator from 'delaunator';
-import { convertMetersToLngLat, getDistanceInMeters, projectLngLatToMeters } from './project';
-import { isCloseTo } from './math';
-import { Vector3 } from 'three';
+import { projectLngLatToMeters } from './project';
+import * as turf from '@turf/turf';
+import { isCloseTo } from './utils/math';
 
 const allowedGeometryTypes = ['MultiPoint', 'LineString', 'Polygon'];
 
@@ -51,6 +51,15 @@ export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geo
   const coords = delaunator.coords;
   const lngLats = [];
 
+  const boundsLL = turf.bbox(geojson.features[featureIndex]);
+
+  const [minX, minY, maxX, maxY] = boundsLL;
+
+  const bounds = {
+    min: projectLngLatToMeters(originVec2, [minX, minY]),
+    max: projectLngLatToMeters(originVec2, [maxX, maxY]),
+  }
+
   for (let i = 0; i < coords.length; i += 2) {
     const { x, y: z } = projectLngLatToMeters(originVec2, [coords[i], coords[i + 1]]);
     const altitudeKey = `${x},${z}`;
@@ -78,6 +87,7 @@ export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geo
     minAltitude: Math.min(...vertices.filter((_, i) => i % 3 === 2)),
     origin,
     lngLats,
+    bounds,
   }
 }
 
@@ -96,8 +106,4 @@ function calculateNormal(v0: number[], v1: number[], v2: number[]) {
   const length = Math.sqrt(normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]);
   if (length === 0) return [0, 0, 0]; // Avoid division by zero
   return [normal[0] / length, normal[1] / length, normal[2] / length];
-}
-
-function precision(num: number, decimals: number) {
-  return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }

@@ -1,8 +1,9 @@
 import { Canvas, type ThreeEvent } from '@react-three/fiber'
 import { MapControls, OrbitControls } from '@react-three/drei'
-import Scene, { type ScenePointerEvent } from './Scene'
-import { useCallback, useState } from 'react';
+import Scene, { type ScenePointerEvent } from './components/Scene'
+import { useCallback, useEffect, useState } from 'react';
 import { LngLat } from '@maptiler/sdk';
+
 
 export type PopoverState = {
   lngLat: LngLat;
@@ -13,7 +14,6 @@ export type PopoverState = {
 }
 
 export default function App() {
-
   const [showContour, setShowContour] = useState(false);
   const [showPoints, setShowPoints] = useState(false);
   const [showSlope, setShowSlope] = useState(false);
@@ -36,6 +36,16 @@ export default function App() {
     })
   }, []);
 
+  const resetPopover = useCallback(() => {
+    setPopoverState({
+      lngLat: new LngLat(0, 0),
+      altitude: 0,
+      transformX: -100,
+      transformY: -100,
+      visible: false,
+    })
+  }, []);
+
   return (
     <>
     <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000, color: 'white' }}>
@@ -53,11 +63,20 @@ export default function App() {
       </div>
     </div>
     <Canvas
+      onClick={() => {
+        // console.log(popoverState);
+      }}
       camera={{
         position: [0, 200, 0],
       }}
     >
-      <Scene showContour={showContour} showPoints={showPoints} showSlope={showSlope} onMouseMove={handleMouseMove} />
+      <Scene
+        showContour={showContour}
+        showPoints={showPoints}
+        showSlope={showSlope}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={resetPopover}
+      />
       <MapControls />
     </Canvas>
     <div style={{
@@ -73,8 +92,8 @@ export default function App() {
     }}>
       {popoverState.visible && (
         <div>
-          <div>{popoverState.lngLat.lat.toFixed(7)}</div>
-          <div>{popoverState.lngLat.lng.toFixed(7)}</div>
+          <div>{popoverState.lngLat.lat.toFixed(10)}</div>
+          <div>{popoverState.lngLat.lng.toFixed(10)}</div>
           <div>{popoverState.altitude.toFixed(2)}</div>
         </div>
       )}

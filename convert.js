@@ -15,6 +15,14 @@ const boundaryData = turf.featureCollection(topographyData.features);
 
 const points = topographyData.features.map(feature => feature.geometry.coordinates);
 
+const featureCoordinatesWithValidAltitude = featureData.features.filter(feature => { 
+  const featureCoordinates = feature.geometry.coordinates;
+  const isDefined = featureCoordinates.length === 3;
+  const isNotNull = featureCoordinates[2] !== null;
+  const isNotZero = featureCoordinates[2] !== 0;
+  return isDefined && isNotNull && isNotZero;
+}).map(feature => feature.geometry.coordinates);
+
 const out = {
   type: 'FeatureCollection',
   features: [
@@ -25,7 +33,10 @@ const out = {
       },
       geometry: {
         type: 'MultiPoint',
-        coordinates: points,
+        coordinates: [
+          ...points,
+          ...featureCoordinatesWithValidAltitude,
+        ],
       },
     },
     ...originBoundaryData.features,
