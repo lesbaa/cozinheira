@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Box3, OrthographicCamera, Vector3, Mesh, Color, FloatType, RGBAFormat, Scene, DoubleSide, NearestFilter, Box3Helper, CameraHelper } from "three";
 import { useTerrainState } from "./useTerrainState";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { Billboard, ScreenSizer, useFBO } from "@react-three/drei";
 
-export default function useQueryElevationAtPosition({
+export function useQueryElevationAtPositionState({
   debug = true,
 }: {
   debug?: boolean;
@@ -121,7 +122,17 @@ export default function useQueryElevationAtPosition({
     return pixelValue;
   }, [bounds.center, bounds.viewport.max, bounds.viewport.min, bounds.viewport.max, pixelReadBuffer, target.height, target.width]);
 
+
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (target.texture) {
+      setReady(true);
+    }
+    queryElevation({ x: 0, y: 0 });
+  }, [target.texture, queryElevation]);
+
   return {
+    ready,
     queryElevation,
     Debug: () => debug ? 
       (
@@ -139,6 +150,29 @@ export default function useQueryElevationAtPosition({
         </Billboard>
       ) : null
   }
+}
+
+export default function useQueryElevationAtPosition() {
+  return useContext(QueryPositionContext);
+}
+
+const QueryPositionContext = createContext<{
+  queryElevation: (position: { x: number, y: number }, debugFunctionCall?: boolean) => number;
+  ready: boolean;
+  Debug: () => React.ReactNode;
+}>({
+  queryElevation: () => 0,
+  ready: false,
+  Debug: () => null,
+});
+
+export function QueryPositionCtxProvider({ children, debug }: { children: React.ReactNode, debug?: boolean }) {
+  const state = useQueryElevationAtPositionState({ debug });
+  return (
+    <QueryPositionContext.Provider value={state}>
+      {children}
+    </QueryPositionContext.Provider>
+  )
 }
 
 /**

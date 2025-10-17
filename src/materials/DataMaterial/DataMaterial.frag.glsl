@@ -1,13 +1,13 @@
 precision highp float;
 
-uniform float uMaxAltitude;
-uniform float uMinAltitude;
+uniform float uMaxValue;
+uniform float uMinValue;
 uniform bool uContour;
-uniform vec3 uContourColor;
+uniform vec4 uContourColor;
 uniform bool uShowSlope;
 
-uniform vec3 uPolygonPoints[MAX_POLYGON_VERTICES];
-uniform int uNumPolygonPoints;
+uniform vec3 uPerimeterPoints[MAX_POLYGON_VERTICES];
+uniform int uNumPerimeterPoints;
 uniform sampler2D uColorRamp;
 
 in vec3 vWorldPosition;
@@ -18,15 +18,15 @@ out vec4 outColor;
 
 // Point in polygon test using the winding number algorithm.
 // This is robust for simple, complex, and self-intersecting polygons.
-bool isPointInPolygon2D(vec2 p, vec3 polygonVertices[MAX_POLYGON_VERTICES], int numVertices) {
+bool isPointInPolygon2D(vec2 p, vec3 perimeterVertices[MAX_POLYGON_VERTICES], int numVertices) {
     if (numVertices < 3) {
         return false;
     }
     
     float totalAngle = 0.0;
     for (int i = 0; i < numVertices; ++i) {
-        vec2 p1 = polygonVertices[i].xz;
-        vec2 p2 = polygonVertices[(i + 1) % numVertices].xz;
+        vec2 p1 = perimeterVertices[i].xz;
+        vec2 p2 = perimeterVertices[(i + 1) % numVertices].xz;
         
         vec2 v1 = p1 - p;
         vec2 v2 = p2 - p;
@@ -46,7 +46,7 @@ void main() {
 
     vec2 pointToTest = vPosition.xz;
 
-    // if (uNumPolygonPoints > 0 && !isPointInPolygon2D(pointToTest, uPolygonPoints, uNumPolygonPoints)) {
+    // if (uNumPerimeterPoints > 0 && !isPointInPolygon2D(pointToTest, uPerimeterPoints, uNumPerimeterPoints)) {
     //     discard;
     // }
 
@@ -58,7 +58,7 @@ void main() {
     }
 
     float height = vPosition.y;
-    float normalizedHeight = (height - uMinAltitude * 0.1) / (uMaxAltitude - uMinAltitude * 0.1) / 0.20 + 0.3;
+    float normalizedHeight = (height - uMinValue * 0.1) / (uMaxValue - uMinValue * 0.1) / 0.20 + 0.3;
     float contour = smoothstep(0.0001, 0.001, sin(vPosition.y * 20.0) * 0.5 + 0.5);
 
     vec4 color = texture2D(uColorRamp, vec2(0.5, 1.0 -normalizedHeight));

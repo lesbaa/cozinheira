@@ -1,104 +1,129 @@
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-function-type
-export type JSPrimitive = string | number | boolean | null | undefined | object | Function
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getOnceKey(args: any[]): string {
+  return args.map(arg => {
+    if (typeof arg === 'function') {
+      return arg.toString();
+    }
+    if (typeof arg === 'object' && arg !== null) {
+      try {
+        return JSON.stringify(arg);
+      } catch (e) {
+        return '[Circular object]';
+      }
+    }
+    return String(arg);
+  }).join(' ');
+}
 
-type LogParams = JSPrimitive | JSPrimitive[] | Record<string, JSPrimitive>;
 
+function getCaller() {
+  const stack = new Error().stack;
+  const caller = stack?.split('\n')[3];
+  return `[${caller}]\n`;
+}
 
 class Logger {
   state = {
-    logs: new Set<LogParams>(),
-    errors: new Set<LogParams>(),
-    warns: new Set<LogParams>(),
-    infos: new Set<LogParams>(),
-    debugs: new Set<LogParams>(),
-    traces: new Set<LogParams>(),
-    tables: new Set<LogParams>(),
+    logs: new Set<string>(),
+    errors: new Set<string>(),
+    warns: new Set<string>(),
+    infos: new Set<string>(),
+    debugs: new Set<string>(),
+    traces: new Set<string>(),
+    tables: new Set<string>(),
   }
 
-  log(message: LogParams) {
-    console.log(message);
+  log(...args: unknown[]) {
+    console.log(getCaller(), ...args);
   }
 
-  logOnce(message: LogParams) {
-    if (this.state.logs.has(message)) {
+  logOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.logs.has(key)) {
       return;
     }
-    this.state.logs.add(message);
-    this.log(message);
+    this.state.logs.add(key);
+    this.log(...args);
   }
 
 
-  error(message: LogParams) {
-    console.error(message);
+  error(...args: unknown[]) {
+    console.error(getCaller(), ...args);
   }
 
-  errorOnce(message: LogParams) {
-    if (this.state.errors.has(message)) {
+  errorOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.errors.has(key)) {
       return;
     }
-    this.state.errors.add(message);
-    this.error(message);
+    this.state.errors.add(key);
+    this.error(...args);
   }
 
-  warn(message: LogParams) {
-    console.warn(message);
+  warn(...args: unknown[]) {
+    console.warn(getCaller(), ...args);
   }
 
-  warnOnce(message: LogParams) {
-    if (this.state.warns.has(message)) {
+  warnOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.warns.has(key)) {
       return;
     }
-    this.state.warns.add(message);
-    this.warn(message);
+    this.state.warns.add(key);
+    this.warn(...args);
   }
 
-  info(message: LogParams) {
-    console.info(message);
+  info(...args: unknown[]) {
+    console.info(getCaller(), ...args);
   }
 
-  infoOnce(message: LogParams) {
-    if (this.state.infos.has(message)) {
+  infoOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.infos.has(key)) {
       return;
     }
-    this.state.infos.add(message);
-    this.info(message);
+    this.state.infos.add(key);
+    this.info(...args);
   }
 
-  debug(message: string) {
-    console.debug(message);
+  debug(...args: unknown[]) {
+    console.debug(getCaller(), ...args);
   }
 
-  debugOnce(message: string) {
-    if (this.state.debugs.has(message)) {
+  debugOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.debugs.has(key)) {
       return;
     }
-    this.state.debugs.add(message);
-    this.debug(message);
+    this.state.debugs.add(key);
+    this.debug(...args);
   }
 
-  trace(message: LogParams) {
-    console.trace(message);
+  trace(...args: unknown[]) {
+    console.trace(getCaller(), ...args);
   }
 
-  traceOnce(message: LogParams) {
-    if (this.state.traces.has(message)) {
+  traceOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.traces.has(key)) {
       return;
     }
-    this.state.traces.add(message);
-    this.trace(message);
+    this.state.traces.add(key);
+    this.trace(...args);
   }
 
-  table(message: LogParams) {
-    console.table(message);
+  table(...args: unknown[]) {
+    console.table(...args);
   }
 
-  tableOnce(message: LogParams) {
-    if (this.state.tables.has(message)) {
+  tableOnce(...args: unknown[]) {
+    const key = getOnceKey(args);
+    if (this.state.tables.has(key)) {
       return;
     }
-    this.state.tables.add(message);
-    this.table(message);
+    this.state.tables.add(key);
+    this.table(...args);
   }
 }
 

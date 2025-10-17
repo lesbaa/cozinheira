@@ -130,7 +130,7 @@
         "name": "AMEND",
         "description": "AMEND",
         "featureType": "AMEND",
-        "size": 1,
+        "size": 2,
         "featureSubType": "AMEND"
       }
     },
@@ -721,6 +721,25 @@
         "featureType": "CYP",
         "size": 1,
         "featureSubType": "CYP"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -7.445118260556967,
+          39.41925528573129,
+          570.808
+        ]
+      },
+      "properties": {
+        "id": "FIG-37",
+        "name": "FIG",
+        "description": "FIG",
+        "featureType": "FIG",
+        "size": 1.2,
+        "featureSubType": "FIG"
       }
     },
     {

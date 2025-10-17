@@ -2,36 +2,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import delaunate from '../delaunate';
 import cozinheira from '../data/cozinheira-multi-point.json' with { type: 'json' };
 import {
-  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
-  CameraHelper,
-  CanvasTexture,
   Color,
   DoubleSide,
   FloatType,
   GLSL3,
   Group,
   Mesh,
-  MeshBasicMaterial,
-  OrthographicCamera,
   Points,
   PointsMaterial,
   RGBAFormat,
   ShaderMaterial,
-  SphereGeometry,
   Vector2,
   Vector3,
 } from 'three';
 import vertexShader from '../shaders/height.vert.glsl?raw';
-import fragmentShader from '../shaders/height.frag.glsl?raw';
 import fragmentShaderPicker from '../shaders/picker.frag.glsl?raw';
 import { convertMetersToLngLat, projectLngLatToMeters } from '../project';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useFBO } from '@react-three/drei';
 import type { LngLat } from '@maptiler/sdk';
-import Features from './Features';
+import Features, { type FeatureHoverEventData } from './Features';
 import { TerrainCtxProvider } from '../hooks/useTerrainState';
+import { Compass } from './Compass';
+import { QueryPositionCtxProvider } from '../hooks/useQueryElevationAtPosition';
+import UserPosition from './UserPosition';
+import DataMaterial from '../materials/DataMaterial';
 
 export type ScenePointerEvent = ThreeEvent<PointerEvent> & { lngLat: LngLat, altitude: number };
 
@@ -54,6 +51,17 @@ const ramp = [
   },
 ]
 
+// const ramp = [
+//   {
+//     color: '#ffffff',
+//     value: 1,
+//   },
+//   {
+//     color: '#000000',
+//     value: 0,
+//   },
+// ]
+
 export default function Scene({
   colorRamp = ramp,
   showContour,
@@ -61,6 +69,7 @@ export default function Scene({
   showPoints,
   onMouseMove,
   onMouseLeave,
+  showFeatureInfo,
 }: {
   colorRamp?: {
     color: string;
@@ -71,27 +80,13 @@ export default function Scene({
   showPoints: boolean;
   onMouseMove: (event: ScenePointerEvent) => void;
   onMouseLeave: () => void;
+  showFeatureInfo: (feature: FeatureHoverEventData | null) => void;
 }) {
-  const colorRampCanvas = useMemo(() => {
-    const c = document.createElement('canvas');
-    const ctx = c.getContext('2d');
-    if (!ctx) return;
 
-    c.width = 1;
-    c.height = 256;
-
-
-    return { ctx , c };
-  }, [])
-
-  const colorRampTexture = useMemo(() => {
-    const texture = new CanvasTexture();
-
-    return texture;
-  }, [])
   
 
   const camera = useThree((state) => state.camera);
+
   const gl = useThree((state) => state.gl);
   // const viewport = useThree((state) => state.viewport);
   const dpr = useThree((state) => state.gl.getPixelRatio());
@@ -102,24 +97,6 @@ export default function Scene({
   });
 
   const scene = useThree((state) => state.scene);
-
-  useEffect(() => {
-    if (!colorRampCanvas) return;
-
-    const gradient = colorRampCanvas.ctx.createLinearGradient(0, 0, 0, 256);
-
-    colorRamp.forEach((stop) => {
-      gradient.addColorStop(stop.value, stop.color);
-    });
-
-    colorRampCanvas.ctx.fillStyle = gradient;
-    colorRampCanvas.ctx.fillRect(0, 0, 1, 256);
-
-    colorRampTexture.image = colorRampCanvas.c;
-    colorRampTexture.needsUpdate = true;
-
-  }, [colorRampCanvas, colorRamp])
-
 
   const terrain = useMemo(() => {
     const {
@@ -149,21 +126,14 @@ export default function Scene({
       const { x, y: z } = projectLngLatToMeters(originLngLat, [coord[0], coord[1]]);
       return new Vector3(-x, 0, z);
     });
-    const material = new ShaderMaterial({
-      glslVersion: GLSL3,
-      vertexShader,
-      fragmentShader: `#define MAX_POLYGON_VERTICES ${perimiterVertices.length}\n${fragmentShader}`,
-      uniforms: {
-        uMaxAltitude: { value: maxAltitude },
-        uMinAltitude: { value: minAltitude },
-        uContour: { value: false },
-        uContourColor: { value: new Color('white') },
-        uShowSlope: { value: false },
-        uNumPolygonPoints: { value: perimiterVertices.length },
-        uPolygonPoints: { value: perimiterVertices },
-        uColorRamp: { value: colorRampTexture },
-      },
-      side: DoubleSide,
+
+    const material = new DataMaterial({
+      maxValue: maxAltitude,
+      minValue: minAltitude,
+      perimiter: perimiterVertices,
+      colorRamp,
+      contour: false,
+      contourColor: new Color('white'),
     })
 
     const pickingMaterial = new ShaderMaterial({
@@ -196,7 +166,7 @@ export default function Scene({
       bounds,
     };
 
-  }, [colorRampTexture]);
+  }, [colorRamp]);
 
 
   useEffect(() => {
@@ -299,7 +269,6 @@ export default function Scene({
 
   })
 
-
   const terrainCtxValue = useMemo(() => {
     return {
       terrainGeometry: terrain.geom,
@@ -314,71 +283,48 @@ export default function Scene({
   }, [terrain]) 
 
 
-  // const debugCenter = useMemo(() => {
-  //   return new Vector3();
-  // },[])
+  const handleFeatureHover = useCallback((feature: FeatureHoverEventData | null) => {
+    showFeatureInfo(feature);
+  }, [showFeatureInfo]);
 
-  // const debugSphere = useMemo(() => {
-  //   return new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: 'red', wireframe: true }));
-  // }, [])
 
-  // const debugFeatureCenter = useMemo(() => {
-  //   return new Vector3();
-  // },[])
+  const handleFeatureSelect = useCallback((feature: FeatureHoverEventData | null) => {
+    console.log("feature select", feature);
+  }, []);
 
-  // const debugFeatureSphere = useMemo(() => {
-  //   return new Mesh(new SphereGeometry(0.5, 32), new MeshBasicMaterial({ color: 'blue', wireframe: true }));
-  // }, [])
-
-  // useEffect(() => {
-  //   scene.add(debugSphere);
-  //   scene.add(debugFeatureSphere);
-  //   return () => {
-  //     scene.remove(debugSphere);
-  //     scene.remove(debugFeatureSphere);
-  //   }
-  //   }, [debugSphere, scene, debugFeatureSphere])
-
-  // useFrame(() => {
-  //   const mesh = scene.getObjectByName("terrain-mesh") as Mesh;
-  //   const feature = scene.getObjectByName("features") as Group;
-
-  //   if (mesh) {
-  //     debugCenter.set(mesh.position.x, mesh.position.y, mesh.position.z);
-  //     debugSphere.position.set(debugCenter.x, debugCenter.y, debugCenter.z);
-  //   }
-
-  //   if (feature) {
-  //     debugFeatureCenter.set(feature.position.x, feature.position.y, feature.position.z);
-  //     debugFeatureSphere.position.set(debugFeatureCenter.x, debugFeatureCenter.y, debugFeatureCenter.z);
-  //   }
-  // })
+  const lightPosition = useMemo(() => {
+    return [terrain.origin[0], terrain.origin[1] + 100, terrain.origin[2]] as [number, number, number];
+  }, [terrain.origin]);
 
   return (
     <TerrainCtxProvider value={terrainCtxValue}>
-      <directionalLight position={[10, 10, 5]} intensity={1} />
-      <points
-        visible={showPoints}
-        name="terrain-points"
-        material={new PointsMaterial({ color: 'blue' })}
-        renderOrder={99} geometry={terrain.geom}
-        // onPointerEnter={(e) => console.log(e.unprojectedPoint)}
-        // onPointerEnter={(e) => console.log(e.unprojectedPoint)}
-      />
-      <mesh
-        name="terrain-mesh"
-        onPointerMove={handleMouseMove}
-        onPointerLeave={handleMouseLeave}
-        renderOrder={1}
-        geometry={terrain.geom}
-        material={terrain.material}
-      />
+      <QueryPositionCtxProvider debug={true}>
+        <directionalLight position={lightPosition} intensity={6} />
+        <ambientLight intensity={2} />
+        <points
+          visible={showPoints}
+          name="terrain-points"
+          material={new PointsMaterial({ color: 'blue' })}
+          renderOrder={99} geometry={terrain.geom}
+        />
+        <mesh
+          name="terrain-mesh"
+          onPointerMove={handleMouseMove}
+          onPointerLeave={handleMouseLeave}
+          onClick={e => console.log("terrain mesh click", e)}
+          renderOrder={1}
+          geometry={terrain.geom}
+          material={terrain.material}
+        />
 
-      <Features
-        origin={terrain.origin}
-      />
-
-      <axesHelper args={[100]} position={[0, -500, 0]} />
+        <Features
+          origin={terrain.origin}
+          onFeatureHover={handleFeatureHover}
+          onFeatureSelect={handleFeatureSelect}
+        />
+        <Compass />
+        <UserPosition />
+      </QueryPositionCtxProvider>
     </TerrainCtxProvider>
   )
 }
