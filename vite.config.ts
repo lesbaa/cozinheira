@@ -8,4 +8,6 @@ export default defineConfig({
     react(),
     wasm(),
   ],
+  publicDir: 'public',
+  base: '/cozinheira/',
 })
