@@ -42,6 +42,33 @@ const out = {
     ...originBoundaryData.features,
   ],
 }
-fs.writeFileSync(path.join(import.meta.dirname, 'src/data/features.json'), JSON.stringify(featureData, null, 2));
+
+class IdGenerator {
+  constructor() {
+    this.id = 0;
+  }
+  generate() {
+    return this.id++;
+  }
+}
+
+const idGenerator = new IdGenerator();
+
+const featuresWithCorrectID = {
+  ...featureData,
+  features: featureData.features.map(feature => {
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        id: idGenerator.generate(),
+      },
+    }
+  }),
+}
+
+
+
+fs.writeFileSync(path.join(import.meta.dirname, 'src/data/features.json'), JSON.stringify(featuresWithCorrectID, null, 2));
 
 fs.writeFileSync(path.join(import.meta.dirname, 'src/data/cozinheira-multi-point.json'), JSON.stringify(out, null, 2));

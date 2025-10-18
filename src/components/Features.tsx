@@ -9,12 +9,11 @@ import type { Feature, FeatureCollection, Point } from 'geojson';
 import useFeatureMeshes from '../hooks/useFeatureMeshes';
 import type { Mesh } from 'three';
 import { useThree } from '@react-three/fiber';
-import { stringToRange } from '../utils/hash';
 
 const UNKNOWN_ALT_REPLACEMENT = 10;
 
 interface FeatureProperties {
-  id: string;
+  id: number;
   name: string;
   description: string;
   featureType: string;
@@ -40,7 +39,7 @@ export type FeatureHoverEventData = {
   }
 }
 
-const features: FeatureCollection<Point, FeatureProperties> = featuresData as FeatureCollection<Point, FeatureProperties>;
+const features: FeatureCollection<Point, FeatureProperties> = featuresData as  FeatureCollection<Point, FeatureProperties>;
 
 // const mnLng = -7.4457
 // const mxLng = -7.4435
@@ -297,13 +296,13 @@ function FeatureType({
         const { x, y } = projectLngLatToMeters([origin[0], origin[1]], lngLat);
         const queriedElevation = queryElevation({ x, y });
 
-        const position = constructPosition(x, y, alt, queriedElevation, origin, feature.properties.id);
+        const position = constructPosition(x, y, alt, queriedElevation, origin, feature.properties.id?.toString());
 
         const rotation: [number, number, number] = isBillboard ? [
           cam.rotation.x,
           cam.rotation.y,
           cam.rotation.z,
-        ] : [mesh.userData.upIsNegative ? Math.PI : 0, stringToRange(feature.properties.id), 0];
+        ] : [mesh.userData.upIsNegative ? Math.PI : 0, Number(feature.properties.id), 0];
         
         return (
           <Instance

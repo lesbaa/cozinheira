@@ -1,7 +1,19 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Box3, OrthographicCamera, Vector3, Mesh, Color, FloatType, RGBAFormat, Scene, DoubleSide, NearestFilter, Box3Helper, CameraHelper } from "three";
-import { useTerrainState } from "./useTerrainState";
+import {
+  Box3,
+  OrthographicCamera,
+  Vector3,
+  Mesh,
+  Color,
+  FloatType,
+  RGBAFormat,
+  Scene,
+  DoubleSide,
+  NearestFilter,
+  Box3Helper
+} from "three";
+import useTerrainState from "./useTerrainState";
 import { useThree } from "@react-three/fiber";
 import { Billboard, ScreenSizer, useFBO } from "@react-three/drei";
 

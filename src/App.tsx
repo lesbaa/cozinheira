@@ -4,6 +4,9 @@ import Scene, { type ScenePointerEvent } from './components/Scene'
 import { useCallback, useState } from 'react';
 import { LngLat } from '@maptiler/sdk';
 import type { FeatureHoverEventData } from './components/Features';
+import { TerrainCtxProvider } from './hooks/useTerrainState/useTerrainState';
+import ColorRamps from './utils/ColorRamp';
+import { GlobalStateCtxProvider } from './hooks/useGlobalState';
 
 export type PopoverState = {
   lngLat: LngLat;
@@ -62,7 +65,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <GlobalStateCtxProvider>
       <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000, color: 'white' }}>
         <div>
         <input type="checkbox" checked={showContour} onChange={() => setShowContour(v => !v)} />
@@ -83,14 +86,20 @@ export default function App() {
         }}
         onContextMenu={handleContextMenu}
       >
-        <Scene
-          showFeatureInfo={showFeatureInfo}
+        <TerrainCtxProvider
+          colorRamp={ColorRamps.Lumo}
           showContour={showContour}
-          showPoints={showPoints}
           showSlope={showSlope}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={resetPopover}
-        />
+        >
+          <Scene
+            showFeatureInfo={showFeatureInfo}
+            showContour={showContour}
+            showPoints={showPoints}
+            showSlope={showSlope}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={resetPopover}
+          />
+        </TerrainCtxProvider>
         <MapControls />
       </Canvas>
       <div style={{
@@ -115,28 +124,28 @@ export default function App() {
           </div>
         )}
       </div>
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          zIndex: 1000,
-          color: 'black',
-          background: 'white',
-          padding: '10px',
-          borderRadius: '5px',
-          transition: 'opacity 0.3s ease-in-out',
-          opacity: featureInfo ? 1 : 0,
-          pointerEvents: featureInfo ? 'none' : 'auto',
-          transform: `translate(${(featureInfo?.mouseX ?? -200) + 20}px, ${(featureInfo?.mouseY ?? -200) + 20}px)`
-        }}>
-          <div>ID: {featureInfo?.id}</div>
-          <div>Type: {featureInfo?.type}</div>
-          <div>SubType: {featureInfo?.subType}</div>
-          <div>Size: {featureInfo?.size.toFixed(3)}</div>
-          <div>Lat: {featureInfo?.lngLat[0].toFixed(6)}</div>
-          <div>Lng: {featureInfo?.lngLat[1].toFixed(6)}</div>
-          <div>Alt: {featureInfo?.alt.toFixed(3)}</div>
-        </div>
-    </>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 1000,
+        color: 'black',
+        background: 'white',
+        padding: '10px',
+        borderRadius: '5px',
+        transition: 'opacity 0.3s ease-in-out',
+        opacity: featureInfo ? 1 : 0,
+        pointerEvents: featureInfo ? 'none' : 'auto',
+        transform: `translate(${(featureInfo?.mouseX ?? -200) + 20}px, ${(featureInfo?.mouseY ?? -200) + 20}px)`
+      }}>
+        <div>ID: {featureInfo?.id}</div>
+        <div>Type: {featureInfo?.type}</div>
+        <div>SubType: {featureInfo?.subType}</div>
+        <div>Size: {featureInfo?.size.toFixed(3)}</div>
+        <div>Lat: {featureInfo?.lngLat[0].toFixed(6)}</div>
+        <div>Lng: {featureInfo?.lngLat[1].toFixed(6)}</div>
+        <div>Alt: {featureInfo?.alt.toFixed(3)}</div>
+      </div>
+    </GlobalStateCtxProvider>
   )
 }

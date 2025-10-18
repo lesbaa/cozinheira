@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { projectLngLatToMeters } from "../project";
-import { useTerrainState } from "../hooks/useTerrainState";
+import useTerrainState from "../hooks/useTerrainState";
 import logger from "../utils/logger";
 import useQueryElevationAtPosition from "../hooks/useQueryElevationAtPosition";
-import { Vector3, type Mesh } from "three";
+import { MeshBasicMaterial, type Mesh } from "three";
 import { useFrame } from "@react-three/fiber";
 
 export default function UserPosition() {
@@ -65,14 +65,15 @@ export default function UserPosition() {
       animAlphaRef.current = 0;
     }
 
-    pulseSphereRef.current.material.opacity = 1.0 - animAlphaRef.current;
-    pulseSphereRef.current.material.needsUpdate = true;
+
+    const material = pulseSphereRef.current.material as MeshBasicMaterial;
+    material.opacity = 1.0 - animAlphaRef.current;
+    material.needsUpdate = true;
     pulseSphereRef.current.scale.set(
       1.0 + (4.0 * animAlphaRef.current),
       1.0 + (4.0 * animAlphaRef.current),
       1.0 + (4.0 * animAlphaRef.current)
     )
-
   })
 
   if (!active) return null;

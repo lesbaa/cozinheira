@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import { useCallback, useMemo } from "react";
-import { BoxGeometry, CanvasTexture, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry } from "three";
+import { BoxGeometry, CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry } from "three";
 import logger from "../utils/logger";
 
 export default function useFeatureMeshes() {

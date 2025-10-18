@@ -5,7 +5,9 @@ import { isCloseTo } from './utils/math';
 
 const allowedGeometryTypes = ['MultiPoint', 'LineString', 'Polygon'];
 
-export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geometry>, featureName: string = 'topography', cullOddAltitudes: boolean = false) {
+type AllowedGeometry = GeoJSON.MultiPoint | GeoJSON.LineString | GeoJSON.Polygon;
+
+export default function delaunate(geojson: GeoJSON.FeatureCollection, featureName: string = 'topography', cullOddAltitudes: boolean = false) {
   const points = [];
   const altitudes: Record<string, number> = {};
   const vertices: number[] = [];
@@ -14,14 +16,17 @@ export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geo
   const featureIndex = geojson.features.findIndex(feature => feature.properties?.name === featureName);
 
   const originIndex = geojson.features.findIndex(feature => feature.properties?.pointType === 'origin');
-  const origin = geojson.features[originIndex].geometry.coordinates;
+  const originFeature = geojson.features[originIndex] as GeoJSON.Feature<GeoJSON.Point>;
+  const origin = originFeature.geometry.coordinates as [number, number, number];
   
   const originVec2: [number, number] = [origin[0], origin[1]];
 
-  if (!allowedGeometryTypes.includes(geojson.features[featureIndex].geometry.type) || !geojson.features[featureIndex].geometry.coordinates) {
+  const featureGeometry = geojson.features[featureIndex].geometry as AllowedGeometry;
+
+  if (!allowedGeometryTypes.includes(featureGeometry.type) || !featureGeometry.coordinates) {
     throw new Error('Invalid geometry type');
   }
-  const coordsArray: Array<[number, number, number]> = geojson.features[featureIndex].geometry.coordinates;
+  const coordsArray: Array<[number, number, number]> = featureGeometry.coordinates as [number, number, number][];
 
   for (const coords of coordsArray) {
 
@@ -63,7 +68,9 @@ export default function delaunate(geojson: GeoJSON.FeatureCollection<GeoJSON.Geo
   for (let i = 0; i < coords.length; i += 2) {
     const { x, y: z } = projectLngLatToMeters(originVec2, [coords[i], coords[i + 1]]);
     const altitudeKey = `${x},${z}`;
-    const y = altitudes[altitudeKey] - origin[2];
+    const altitude = altitudes[altitudeKey];
+    if (altitude === undefined) continue;
+    const y = altitude - origin[2];
 
     lngLats.push([coords[i], coords[i + 1], altitudes[altitudeKey]]);
     if (!z || !x || !y) continue;
