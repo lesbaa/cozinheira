@@ -24,7 +24,7 @@ interface FeatureProperties {
 export type FeatureHoverEventData = {
   mouseX: number;
   mouseY: number;
-  id: string;
+  id: number;
   lngLat: [number, number];
   alt: number;
   position: [number, number, number];
@@ -315,7 +315,6 @@ function FeatureType({
             onPointerEnter={(e) => onFeatureHover({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
             onPointerDown={(e) => onFeatureSelect({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
             onPointerLeave={() => onFeatureHover(null)}
-            onPointerUp={() => onFeatureSelect(null)}
             rotation={rotation}
             scale={(featureType.sizeMultiplier ?? 1) * (feature.properties.size ?? 1)}
             color={"#ffffff"}

@@ -29,7 +29,7 @@ export default function Scene({
   showPoints: boolean;
   onMouseMove: (event: ScenePointerEvent) => void;
   onMouseLeave: () => void;
-  showFeatureInfo: (feature: FeatureHoverEventData | null) => void;
+  showFeatureInfo: (feature: FeatureHoverEventData | null, focusFeature: boolean) => void;
 }) {
 
   const terrain = useTerrainState();
@@ -57,8 +57,17 @@ export default function Scene({
   }, [showFeatureInfo]);
 
   const handleFeatureSelect = useCallback((feature: FeatureHoverEventData | null) => {
-    console.log("feature select", feature);
-  }, []);
+    if (!feature) {
+      showFeatureInfo(null);
+      return;
+    }
+
+    showFeatureInfo({
+      ...feature,
+      mouseX: 0,
+      mouseY: 0,
+    }, true);
+  }, [showFeatureInfo]);
 
   const lightPosition = useMemo(() => {
     return [terrain.origin[0], terrain.origin[1] + 100, terrain.origin[2]] as [number, number, number];
@@ -77,7 +86,7 @@ export default function Scene({
         <mesh
           name="terrain-mesh"
           onPointerMove={handleMouseMove}
-          onPointerDown={handleMouseMove}
+          onPointerDown={() => handleFeatureSelect(null)}
           onPointerLeave={handleMouseLeave}
           onClick={e => console.log("terrain mesh click", e)}
           renderOrder={1}

@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { MapControls } from '@react-three/drei'
 import Scene, { type ScenePointerEvent } from './components/Scene'
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { LngLat } from '@maptiler/sdk';
 import type { FeatureHoverEventData } from './components/Features';
 import { TerrainCtxProvider } from './hooks/useTerrainState/useTerrainState';
@@ -20,6 +20,7 @@ export default function App() {
   const [showContour, setShowContour] = useState(false);
   const [showPoints, setShowPoints] = useState(false);
   const [showSlope, setShowSlope] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
 
   const [popoverState, setPopoverState] = useState<PopoverState>({
     lngLat: new LngLat(0, 0),
@@ -51,8 +52,23 @@ export default function App() {
 
   const [featureInfo, setFeatureInfo] = useState<FeatureHoverEventData | null>(null);
 
-  const showFeatureInfo = useCallback((feature: FeatureHoverEventData | null) => {
+
+  const featureInfoRef = useRef<HTMLDivElement | null>(null);
+
+  const showFeatureInfo = useCallback((feature: FeatureHoverEventData | null, focusFeature: boolean) => {
     resetPopover();
+
+
+    if (focusFeature && featureInfoRef.current && feature) {
+      const elementHeight = featureInfoRef.current.offsetHeight;
+      setFeatureInfo({
+        ...feature,
+        mouseY: window.innerHeight - elementHeight - 40,
+        mouseX: 0,
+      });
+      return;
+    }
+
     setFeatureInfo(feature);
   }, [resetPopover]);
 
@@ -66,18 +82,22 @@ export default function App() {
 
   return (
     <GlobalStateCtxProvider>
-      <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000, color: 'white' }}>
-        <div>
-        <input type="checkbox" checked={showContour} onChange={() => setShowContour(v => !v)} />
-        <label htmlFor="showContour">Show Contour</label>
-        </div>
-        <div>
-        <input type="checkbox" checked={showPoints} onChange={() => setShowPoints(v => !v)} />
-        <label htmlFor="showContour">Show Control Points</label>
-        </div>
-        <div>
-        <input type="checkbox" checked={showSlope} onChange={() => setShowSlope(v => !v)} />
-        <label htmlFor="showSlope">Show Slope</label>
+      <button className="hamburger" onClick={() => setShowOptions(v => !v)}></button>
+      <div className={["options", showOptions ? "show" : "hide"].join(" ")}>
+        <button className="close-options" onClick={() => setShowOptions(false)}></button>
+        <div className="options-list">
+          <div>
+          <input type="checkbox" checked={showContour} onChange={() => setShowContour(v => !v)} />
+          <label htmlFor="showContour">Show Contour</label>
+          </div>
+          <div>
+          <input type="checkbox" checked={showPoints} onChange={() => setShowPoints(v => !v)} />
+          <label htmlFor="showContour">Show Control Points</label>
+          </div>
+          <div>
+          <input type="checkbox" checked={showSlope} onChange={() => setShowSlope(v => !v)} />
+          <label htmlFor="showSlope">Show Slope</label>
+          </div>
         </div>
       </div>
       <Canvas
@@ -124,20 +144,23 @@ export default function App() {
           </div>
         )}
       </div>
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        zIndex: 1000,
-        color: 'black',
-        background: 'white',
-        padding: '10px',
-        borderRadius: '5px',
-        transition: 'opacity 0.3s ease-in-out',
-        opacity: featureInfo ? 1 : 0,
-        pointerEvents: featureInfo ? 'none' : 'auto',
-        transform: `translate(${(featureInfo?.mouseX ?? -200) + 20}px, ${(featureInfo?.mouseY ?? -200) + 20}px)`
-      }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 1000,
+          color: 'black',
+          background: 'white',
+          padding: '10px',
+          borderRadius: '5px',
+          transition: 'opacity 0.3s ease-in-out',
+          opacity: featureInfo ? 1 : 0,
+          pointerEvents: featureInfo ? 'none' : 'auto',
+          transform: `translate(${(featureInfo?.mouseX ?? -200) + 20}px, ${(featureInfo?.mouseY ?? -200) + 20}px)`
+        }}
+        ref={featureInfoRef}
+      >
         <div>ID: {featureInfo?.id}</div>
         <div>Type: {featureInfo?.type}</div>
         <div>SubType: {featureInfo?.subType}</div>

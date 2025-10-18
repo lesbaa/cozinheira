@@ -8,4 +8,60 @@ body,
   height: 100%;
   overflow: hidden;
   background: #000000;
+  font-family: monospace;
+}
+
+.hamburger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: none;
+}
+
+.close-options {
+  appearance: none;
+  border: none;
+  color: white;
+  background: black;
+  margin-bottom: 1rem;
+}
+
+.close-options:after {
+  content: '×';
+  padding: 0;
+  font-size: 1.5em;
+}
+
+.hamburger:after {
+  content: '▼';
+  display: inline-block;
+  margin-left: 5px;
+}
+
+.options {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  color: white;
+  transform: translate(0,0);
+  transition: transform 0.3s ease-in-out;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.options.hide {
+  transform: translate(0, -200%);
 }
