@@ -313,7 +313,9 @@ function FeatureType({
               position[2] // - 6, // same, why does this work?
             ]}
             onPointerEnter={(e) => onFeatureHover({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
+            onPointerDown={(e) => onFeatureSelect({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
             onPointerLeave={() => onFeatureHover(null)}
+            onPointerUp={() => onFeatureSelect(null)}
             rotation={rotation}
             scale={(featureType.sizeMultiplier ?? 1) * (feature.properties.size ?? 1)}
             color={"#ffffff"}

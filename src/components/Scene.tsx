@@ -77,6 +77,7 @@ export default function Scene({
         <mesh
           name="terrain-mesh"
           onPointerMove={handleMouseMove}
+          onPointerDown={handleMouseMove}
           onPointerLeave={handleMouseLeave}
           onClick={e => console.log("terrain mesh click", e)}
           renderOrder={1}
