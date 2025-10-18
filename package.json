@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:ghpages": "tsc && vite build --outDir ghpages --base \"/cozinheira/\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
