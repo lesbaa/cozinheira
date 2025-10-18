@@ -59,7 +59,7 @@ export default function useFeatureMeshes() {
     return mesh;
   }, []);
 
-  const treeGLTF = useGLTF(`/trees/scene.gltf`);
+  const treeGLTF = useGLTF(`./trees/scene.gltf`);
 
 //   const scene = useThree((state) => state.scene);
 
