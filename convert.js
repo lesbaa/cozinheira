@@ -54,18 +54,135 @@ class IdGenerator {
 
 const idGenerator = new IdGenerator();
 
+const carvp = [
+  277
+]
+
+const oliv = [
+  287,
+  360,
+  285,
+  284,
+  286,
+  280,
+  281,
+  306,
+  355,
+  357,
+  278,
+  279,
+  364, // STUMP
+  363,
+  362, // STUMP
+  290,
+  304,
+  301,
+  317,
+  305,
+  303,
+  302,
+  291,
+  289,
+  288,
+  292,
+  300,
+  366,
+  367,
+  356,
+  322,
+  359,
+  320,
+  321,
+  323,
+  324,
+  325,
+  326,
+  327,
+  318,
+  319,
+  369,
+  352,
+  353,
+  368,
+  299,
+  297,
+  294,
+  351,
+  296,
+  298,
+  295,
+]
+
+const remove = [
+  365
+]
+
+const counts = {}
+
 const featuresWithCorrectID = {
   ...featureData,
   features: featureData.features.map(feature => {
+    const id = idGenerator.generate();
+
+    if (carvp.includes(feature.properties.id)) {
+      if (feature.properties.featureType !== 'UNKNOWN') {
+        console.warn(`Feature ${feature.properties.id} already has a feature type other than UNKNOWN: ${feature.properties.featureType}`);
+      }
+
+      const featureType = feature.properties.featureType === 'UNKNOWN'
+        ? 'CARVP'
+        : feature.properties.featureType;
+
+      return {
+        ...feature,
+        properties: {
+          ...feature.properties,
+          description: featureType,
+          name: featureType,
+          featureType,
+          id,
+        },
+      }
+    }
+
+    if (oliv.includes(feature.properties.id)) {
+      if (feature.properties.featureType !== 'UNKNOWN') {
+        console.warn(`Feature ${feature.properties.id} already has a feature type other than UNKNOWN: ${feature.properties.featureType}`);
+      }
+
+      const featureType = feature.properties.featureType === 'UNKNOWN'
+        ? 'OLIVEIRA'
+        : feature.properties.featureType;
+
+      return {
+        ...feature,
+        properties: {
+          ...feature.properties,
+          description: featureType,
+          name: featureType,
+          featureType,
+          id,
+        },
+      }
+    }
+
+    if (counts[feature.properties.featureType]) {
+      counts[feature.properties.featureType]++;
+    } else {
+      counts[feature.properties.featureType] = 1;
+    }
+
     return {
       ...feature,
       properties: {
         ...feature.properties,
-        id: idGenerator.generate(),
+        id,
       },
     }
-  }),
+  }).filter(feature => !remove.includes(feature.properties.id)),
 }
+
+console.table(counts);
 
 
 

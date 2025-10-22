@@ -11,6 +11,14 @@ import { useFBO } from "@react-three/drei";
 import vertexShader from "./shaders/height.vert.glsl?raw";
 import fragmentShaderPicker from "./shaders/picker.frag.glsl?raw";
 import useGlobalState from "../useGlobalState";
+import MapProviderMaterial from "../../materials/MapProviderMaterial/MapProviderMaterial";
+import { bbox } from "@turf/turf";
+// import { LngLatBounds } from "@maptiler/sdk";
+import { LngLat, LngLatBounds } from "maplibre-gl";
+// import MapProviderMaterial from "../../materials/MapProviderMaterial/MapProviderMaterial";
+// import { LngLatBounds } from "@maptiler/sdk";
+// import bbox from "@turf/bbox";
+// import { LngLat } from "maplibre-gl";
 
 export type TerrainContextValue = {
   terrainGeometry: BufferGeometry,
@@ -53,7 +61,9 @@ export function TerrainCtxProvider({
   showContour?: boolean;
   showSlope?: boolean;
 }) {
-  const value = useTerrainStateInternal({ colorRamp, showContour, showSlope });
+  const terrainState = useTerrainStateInternal({ colorRamp, showContour, showSlope });
+  // console.count('+++++++++++======== TerrainCtxProvider 61');
+  const value = useMemo(() => terrainState, [terrainState]);
   return (
     <TerrainContext.Provider value={value}>
       {children}
@@ -70,8 +80,15 @@ function useTerrainStateInternal({
   showContour?: boolean;
   showSlope?: boolean;
 } = {}): TerrainContextValue {
+  console.count('+++++++++++======== called useTerrainStateInternal');
+
+  useEffect(() => {
+    console.log('+++++++++++======== MOUNTED TerrainCtxProvider');
+    return () => console.log('+++++++++++======== UNMOUNTED TerrainCtxProvider');
+  }, []);
 
   const terrain = useMemo(() => {
+    console.count('+++++++++++======== memoized terrain');
     const {
       positions: vertices,
       lngLats,
@@ -95,6 +112,7 @@ function useTerrainStateInternal({
     const boundaryFeature = cozinheira.features.find((feature) => feature.properties?.name === 'boundary');
     const boundaryRing = boundaryFeature?.geometry.coordinates[0] as [number, number][] || [];
 
+    const lngLatBounds = bbox(boundaryFeature as GeoJSON.Feature<GeoJSON.Geometry>);
     const perimiterVertices = boundaryRing.map((coord) => {
       const { x, y: z } = projectLngLatToMeters(originLngLat, [coord[0], coord[1]]);
       return new Vector3(-x, 0, z);
@@ -106,8 +124,15 @@ function useTerrainStateInternal({
       perimiter: perimiterVertices,
       colorRamp,
       contour: false,
-      contourColor: new Color('white'),
+      contourColor: new Color('#ffffff'),
     })
+
+    // const mapMaterial = new MapProviderMaterial({
+    //   bounds: new LngLatBounds(
+    //     new LngLat(lngLatBounds[0], lngLatBounds[1]),
+    //     new LngLat(lngLatBounds[2], lngLatBounds[3]),
+    //   ),
+    // })
 
     const terrainPickingMaterial = new ShaderMaterial({
       glslVersion: GLSL3,
@@ -120,7 +145,6 @@ function useTerrainStateInternal({
       },
       side: DoubleSide,
     })
-
 
     // const cubes = []
 
@@ -153,7 +177,6 @@ function useTerrainStateInternal({
   });
 
   const pixelReadBuffer = useMemo(() => new Float32Array(4), []);
-
 
   const { state: { mouseScreenPos } } = useGlobalState();
 
@@ -225,7 +248,8 @@ function useTerrainStateInternal({
     }
   }, [showContour, terrain.terrainMaterial, showSlope])
 
-  return { ...terrain, pixelReadBuffer };
+  // return useMemo(() => { console.count('+++++++++++======== returning terrain state'); return { ...terrain, pixelReadBuffer } }, [terrain, pixelReadBuffer]);
+  return useMemo(() => ({ ...terrain, pixelReadBuffer }), [terrain, pixelReadBuffer]);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

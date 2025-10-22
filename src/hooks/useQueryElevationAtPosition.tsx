@@ -143,7 +143,7 @@ export function useQueryElevationAtPositionState({
     queryElevation({ x: 0, y: 0 });
   }, [target.texture, queryElevation]);
 
-  return {
+  return useMemo(() => ({
     ready,
     queryElevation,
     Debug: () => debug ? 
@@ -161,7 +161,7 @@ export function useQueryElevationAtPositionState({
           </ScreenSizer>
         </Billboard>
       ) : null
-  }
+  }), [debug, ready, target.texture, target.width, target.height]);
 }
 
 export default function useQueryElevationAtPosition() {

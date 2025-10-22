@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { MapControls } from '@react-three/drei'
 import Scene, { type ScenePointerEvent } from './components/Scene'
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { LngLat } from '@maptiler/sdk';
 import type { FeatureHoverEventData } from './components/Features';
 import { TerrainCtxProvider } from './hooks/useTerrainState/useTerrainState';
@@ -55,9 +55,8 @@ export default function App() {
 
   const featureInfoRef = useRef<HTMLDivElement | null>(null);
 
-  const showFeatureInfo = useCallback((feature: FeatureHoverEventData | null, focusFeature: boolean) => {
+  const showFeatureInfo = useCallback((feature: FeatureHoverEventData | null, focusFeature?: boolean) => {
     resetPopover();
-
 
     if (focusFeature && featureInfoRef.current && feature) {
       const elementHeight = featureInfoRef.current.offsetHeight;
@@ -79,6 +78,10 @@ export default function App() {
       visible: true,
     }))
   }, []);
+
+  const stableColorRamp = useMemo(() => ColorRamps.Lumo, [])
+
+// console.count('+++++++++++======== App rendered');
 
   return (
     <GlobalStateCtxProvider>
@@ -107,7 +110,7 @@ export default function App() {
         onContextMenu={handleContextMenu}
       >
         <TerrainCtxProvider
-          colorRamp={ColorRamps.Lumo}
+          colorRamp={stableColorRamp}
           showContour={showContour}
           showSlope={showSlope}
         >

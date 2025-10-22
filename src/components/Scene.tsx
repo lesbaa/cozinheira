@@ -29,7 +29,7 @@ export default function Scene({
   showPoints: boolean;
   onMouseMove: (event: ScenePointerEvent) => void;
   onMouseLeave: () => void;
-  showFeatureInfo: (feature: FeatureHoverEventData | null, focusFeature: boolean) => void;
+  showFeatureInfo: (feature: FeatureHoverEventData | null, focusFeature?: boolean) => void;
 }) {
 
   const terrain = useTerrainState();
