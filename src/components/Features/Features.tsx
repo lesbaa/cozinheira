@@ -1,20 +1,23 @@
-import { memo, useMemo } from 'react';
-import featuresData from '../data/features.json' with { type: 'json' };
-import useQueryElevationAtPosition from '../hooks/useQueryElevationAtPosition';
-import { projectLngLatToMeters } from '../project';
+import featuresData from '../../data/features.json' with { type: 'json' };
+import useQueryElevationAtPosition from '../../hooks/useQueryElevationAtPosition';
+import { projectLngLatToMeters } from '../../project';
 import { Instance, Instances } from '@react-three/drei';
-import { isCloseTo } from '../utils/math';
-import Logger from '../utils/logger';
+import { isCloseTo } from '../../utils/math';
 import type { Feature, FeatureCollection, Point } from 'geojson';
-import useFeatureMeshes from '../hooks/useFeatureMeshes';
-import type { Mesh } from 'three';
+import { Material, type Mesh } from 'three';
 import { useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
+import { FeatureTypesConfig, type FeatureType } from './types';
+import useFeatureMeshes from '../../hooks/useFeatureMeshes';
 
 const UNKNOWN_ALT_REPLACEMENT = 10;
 
 interface FeatureProperties {
-  id: number;
+  id: number | string;
   name: string;
+  hidden?: boolean;
+  isDummyRenderElement?: boolean;
   description: string;
   featureType: string;
   featureSubType?: string;
@@ -31,6 +34,7 @@ export type FeatureHoverEventData = {
   type: string;
   size: number;
   subType: string;
+  hidden: boolean;
   debugData: {
     queriedElevation: number;
     alt: number;
@@ -83,137 +87,6 @@ const features: FeatureCollection<Point, FeatureProperties> = featuresData as  F
 // DarkBlueTree
 // LightBlueTree
 
-type FeatureType = {
-  id: string;
-  color: string;
-  mesh: string;
-  sizeMultiplier?: number;
-}
-
-const featureTypes: Record<string, FeatureType> = {
-  SOB: { 
-    id: "SOB",
-    color: "",
-    mesh: "Blobbed_1",
-    sizeMultiplier: 1.5,
-  },
-  MARM: { 
-    id: "MARM",
-    color: "",
-    mesh: "Bubbled_4",
-    sizeMultiplier: 0.75,
-  },
-  HAWTH: { 
-    id: "HAWTH",
-    color: "",
-    mesh: "Dead_3",
-    sizeMultiplier: 0.75,
-  },
-  AMEND: { 
-    id: "AMEND",
-    color: "",
-    mesh: "Blobbed_1",
-    sizeMultiplier: 1,
-  },
-  FIG: { 
-    id: "FIG",
-    color: "",
-    mesh: "Boxed_4",
-    sizeMultiplier: 1,
-  },
-  CARVP: { 
-    id: "CARVP",
-    color: "",
-    mesh: "Blobbed_2",
-    sizeMultiplier: 1,
-  },
-  AZINH: { 
-    id: "AZINH",
-    color: "",
-    mesh: "Blobbed_5",
-    sizeMultiplier: 0.75,
-  },
-  LILAC: { 
-    id: "LILAC",
-    color: "",
-    mesh: "Bubbled_5",
-    sizeMultiplier: 0.5,
-  },
-  AMEIXA: { 
-    id: "AMEIXA",
-    color: "",
-    mesh: "Boxed_5",
-    sizeMultiplier: 0.75,
-  },
-  CYP: { 
-    id: "CYP",
-    color: "",
-    mesh: "Boxed_1",
-    sizeMultiplier: 2,
-  },
-  OSYRISALBA: { 
-    id: "OSYRISALBA",
-    color: "",
-    mesh: "Dead_3",
-    sizeMultiplier: 0.25,
-  },
-  GILB: { 
-    id: "GILB",
-    color: "",
-    mesh: "Boxed_3",
-    sizeMultiplier: 0.5,
-  },
-  HERA: { 
-    id: "HERA",
-    color: "",
-    mesh: "Climber",
-  },
-  MADRESSILVA: { 
-    id: "MADRESSILVA",
-    color: "",
-    mesh: "ClimberTwo",
-  },
-  GORSE: { 
-    id: "GORSE",
-    color: "",
-    mesh: "Dead_1",
-    sizeMultiplier: 0.5,
-  },
-  GORREIRO: { 
-    id: "GORREIRO",
-    color: "",
-    mesh: "Dead_2",
-    sizeMultiplier: 0.5,
-  },
-  SALGB: { 
-    id: "SALGB",
-    color: "",
-    mesh: "Domed_1",
-    sizeMultiplier: 0.75,
-  },
-  OLIVEIRA: { 
-    id: "OLIVEIRA",
-    color: "",
-    mesh: "Bubbled_1",
-    sizeMultiplier: 1,
-  },
-  UNKNOWN: { 
-    id: "UNKNOWN",
-    color: "",
-    mesh: "QuestionMark",
-    sizeMultiplier: 1,
-  },
-  POND: { 
-    id: "pond",
-    color: "",
-    mesh: "Droplet",
-  },
-  WELL: { 
-    id: "well",
-    color: "",
-    mesh: "Bucket",
-  },
-} as const;
 
 function Features({
   origin,
@@ -224,16 +97,16 @@ function Features({
   onFeatureHover: (feature: FeatureHoverEventData | null) => void;
   onFeatureSelect: (feature: FeatureHoverEventData | null) => void;
 }) {
-  const getMesh = useFeatureMeshes();
-  const { queryElevation, ready } = useQueryElevationAtPosition();
+  const { queryElevation } = useQueryElevationAtPosition();
 
   return (
-    <>
-      {Object.values(featureTypes).map((featureType) => {
+    <group name="features">
+      {Object.values(FeatureTypesConfig).map((featureType) => {
+        // console.log("==============")
+        // console.log(features.features.filter((feature) => feature.properties.featureType === featureType.id).length, featureType.mesh)
+        // console.log("==============")
         return (
           <FeatureType
-            visible={ready}
-            getMesh={getMesh}
             featureType={featureType}
             features={features.features.filter((feature) => feature.properties.featureType === featureType.id)}
             queryElevation={queryElevation}
@@ -244,53 +117,83 @@ function Features({
           />
         )
       })}
-    </>
+    </group>
   )
 }
 
 function FeatureType({
-  visible,
   features,
   queryElevation,
   origin,
   featureType,
-  getMesh,
   onFeatureHover,
   onFeatureSelect,
 }: {
-  visible: boolean,
   features: Feature<Point, FeatureProperties>[],
   queryElevation: (position: { x: number, y: number }, debugFunctionCall?: boolean) => number,
   origin: [number, number, number],
   featureType: FeatureType,
-  getMesh: (name: string) => Mesh,
   onFeatureHover: (feature: FeatureHoverEventData | null) => void;
   onFeatureSelect: (feature: FeatureHoverEventData | null) => void;
 }) {
-
-  const mesh = getMesh(featureType.mesh);
-  const isBillboard = useMemo(() => {
-    if (!mesh) return false;
-
-    return mesh.name === "QuestionMark" || mesh.name === "Droplet";
-  }, [mesh]);
-
-
   const cam = useThree((state) => state.camera);
 
-  if (!mesh || !mesh.geometry || !mesh.material) return null;
+  const instancesRef = useRef(null);
 
-  return (
-    <Instances
-      visible={visible}
-      limit={features.length}
-      name="features"
-      geometry={mesh.geometry}
-      material={mesh.material}
-      frustumCulled={false}
-      >
+  useFrame(() => {
+    if (featureType.isCanvasMesh) {
+      const instances = instancesRef.current;
+      if (instances) {
+        // @ts-expect-error - who gives a fuck?
+        (instances).children.forEach((mesh: Mesh) => {
+          mesh.rotation.set(cam.rotation.x, cam.rotation.y, cam.rotation.z);
+        });
+      }
+    }
+  });
+
+
+  const colorMap = {
+    "SOB": "black",
+    "MARM": "black",
+    "HAWTH": "black",
+    "AMEND": "black",
+    "FIG": "black",
+    "CARVP": "black",
+    "AZINH": "black",
+    "LILAC": "black",
+    "AMEIXA": "black",
+    "CYP": "black",
+    "OSYRISALBA": "black",
+    "GILB": "black",
+    "HERA": "black",
+    "MADRESSILVA": "black",
+    "GORSE": "black",
+    "GORREIRO": "black",
+    "SALGB": "black",
+    "OLIVEIRA": "black",
+    "UNKNOWN": "black",
+    "POND": "cyan",
+    "WELL": "cyan",
+  }
+
+  const { featureMeshes, loading } = useFeatureMeshes();
+  // if (loading) {
+  //   return null;
+  // }
+  
+  // 2. Get the correct mesh.
+  const mesh = featureMeshes?.[featureType.mesh] ?? featureMeshes?.Fallback;
+
+  // 3. Safety check. If no mesh, don't render.
+  // if (!mesh || !mesh.geometry) {
+  //   return null;
+  // }
+
+  if (features.length < 5 && mesh) {
+    return (
+      <group ref={instancesRef}>
       {features.map((feature) => {
-
         const lngLat = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]] as [number, number];
         const alt = feature.geometry.coordinates[2];
         const { x, y } = projectLngLatToMeters([origin[0], origin[1]], lngLat);
@@ -298,26 +201,21 @@ function FeatureType({
 
         const position = constructPosition(x, y, alt, queriedElevation, origin, feature.properties.id?.toString());
 
-        const rotation: [number, number, number] = isBillboard ? [
-          cam.rotation.x,
-          cam.rotation.y,
-          cam.rotation.z,
-        ] : [mesh.userData.upIsNegative ? Math.PI : 0, Number(feature.properties.id), 0];
-        
         return (
-          <Instance
-            key={feature.properties.id}
+          <mesh
+            name={feature.properties.id.toString()}
+            key={feature.properties.id.toString()}
+            visible={!feature.properties.hidden}
             position={[
               position[0], // - 7.5, // why does this work?
               (alt ? alt - origin[2] : position[1]),
               position[2] // - 6, // same, why does this work?
             ]}
+            // frustumCulled={false}
             onPointerEnter={(e) => onFeatureHover({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
             onPointerDown={(e) => onFeatureSelect({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
             onPointerLeave={() => onFeatureHover(null)}
-            rotation={rotation}
             scale={(featureType.sizeMultiplier ?? 1) * (feature.properties.size ?? 1)}
-            color={"#ffffff"}
             userData={{
               id: feature.properties.id,
               lngLat,
@@ -326,6 +224,69 @@ function FeatureType({
               type: featureType.id,
               size: feature.properties.size,
               subType: feature.properties.featureSubType,
+              hidden: feature.properties.hidden,
+              debugData: {
+                queriedElevation,
+                alt,
+                id: feature.properties.id,
+                position,
+              }
+            }}
+            onClick={(e) => onFeatureSelect(e.object.userData as FeatureHoverEventData | null)}
+          >
+            <primitive bufferGeometry object={mesh.geometry} />
+            <primitive material object={mesh.material} />
+          </mesh>
+        )
+      })}
+      </group>
+    )
+  }
+  
+
+  // console.log(featureType.mesh, features.length)
+  return (
+    <Instances
+      ref={instancesRef}
+      visible={!loading && Boolean(mesh?.geometry)}
+      limit={features.length}
+      name={`features-instances-${featureType.id}`}
+      geometry={mesh?.geometry}
+      material={mesh?.material}
+      key={mesh?.name && features.length}
+    >
+      {features.map((feature) => {
+        const lngLat = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]] as [number, number];
+        const alt = feature.geometry.coordinates[2];
+        const { x, y } = projectLngLatToMeters([origin[0], origin[1]], lngLat);
+        const queriedElevation = queryElevation({ x, y });
+
+        const position = constructPosition(x, y, alt, queriedElevation, origin, feature.properties.id?.toString());
+
+        return (
+          <Instance
+            name={feature.properties.id.toString()}
+            key={feature.properties.id.toString()}
+            visible={!feature.properties.hidden}
+            position={[
+              position[0], // - 7.5, // why does this work?
+              (alt ? alt - origin[2] : position[1]),
+              position[2] // - 6, // same, why does this work?
+            ]}
+            // frustumCulled={false}
+            onPointerEnter={(e) => onFeatureHover({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
+            onPointerDown={(e) => onFeatureSelect({ ...e.object.userData as FeatureHoverEventData, mouseX: e.clientX, mouseY: e.clientY })}
+            onPointerLeave={() => onFeatureHover(null)}
+            scale={(featureType.sizeMultiplier ?? 1) * (feature.properties.size ?? 1)}
+            userData={{
+              id: feature.properties.id,
+              lngLat,
+              alt: alt ? alt - origin[2] : position[1],
+              position: [-x, queriedElevation, y],
+              type: featureType.id,
+              size: feature.properties.size,
+              subType: feature.properties.featureSubType,
+              hidden: feature.properties.hidden,
               debugData: {
                 queriedElevation,
                 alt,
@@ -371,7 +332,7 @@ function constructPosition(
     // || !isCloseTo(position[1], 0, 500) // TODO find the max difference
 
   if (invalidAltitude) {
-    Logger.warnOnce(`Object "${id}" at position ${x}, ${y} has invalid altitude`);
+    // Logger.warnOnce(`Object "${id}" at position ${x}, ${y} has invalid altitude`);
     return [
       position[0],
       UNKNOWN_ALT_REPLACEMENT,
@@ -388,4 +349,4 @@ function constructPosition(
   return position;
 }
 
-export default memo(Features);
+export default Features;

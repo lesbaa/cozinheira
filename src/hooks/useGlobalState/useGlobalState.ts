@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useReducer } from "react";
-import type { GlobalState, GlobalStateAction, GlobalStateContextValue, StateValue } from "./types";
+import type { GlobalState, GlobalStateAction, GlobalStateContextValue } from "./types";
 import { LngLat } from "@maptiler/sdk";
 import ColorRamps, { type ColorRamp } from "../../utils/ColorRamp";
-import type { FeatureHoverEventData } from "../../components/Features";
+import type { FeatureHoverEventData } from "../../components/Features/Features";
 import { Vector2 } from "three";
 
 export default function useGlobalState(): GlobalStateContextValue {
@@ -12,7 +12,8 @@ export default function useGlobalState(): GlobalStateContextValue {
 export const initialState = {
   showContour: false,
   showPoints: false,
-  showSlope: false,
+  showOptions: false,
+  terrainMaterial: 'heightMap' as 'heightMap' | 'mapMaterial' | 'slopeMap',
   popoverState: {
     lngLat: new LngLat(0, 0),
     altitude: 0,
@@ -61,14 +62,24 @@ function globalStateReducer(state: GlobalState, action: GlobalStateAction) {
   }
 }
 
+type StateValueCallback<K extends keyof GlobalState> = (value: GlobalState[K]) => GlobalState[K];
+
 export function useGlobalStateInternal(): GlobalStateContextValue {
   const [state, dispatch] = useReducer(globalStateReducer, initialState);
 
-
-  const setValue = useCallback((key: keyof GlobalState, value: StateValue) => {
-    dispatch({ type: 'setValue', payload: { key, value } });
-  }, []);
-
+  const setValue = useCallback(<K extends keyof GlobalState>(
+    key: K, 
+    value: GlobalState[K] | StateValueCallback<K>
+  ) => {
+    const currentValue = state[key];
+    dispatch({
+      type: 'setValue',
+      payload: {
+        key,
+        value: typeof value === 'function' ? value(currentValue) : value,
+      },
+    });
+  }, [state]);
 
   const resetPopover = useCallback(() => {
     dispatch({ type: 'resetPopover' });

@@ -7,26 +7,20 @@ import {
 import { convertMetersToLngLat } from '../project';
 import { type ThreeEvent } from '@react-three/fiber';
 import type { LngLat } from '@maptiler/sdk';
-import Features, { type FeatureHoverEventData } from './Features';
+import Features, { type FeatureHoverEventData } from './Features/Features';
 import { Compass } from './Compass';
 import { QueryPositionCtxProvider } from '../hooks/useQueryElevationAtPosition';
 import UserPosition from './UserPosition';
-import { type ColorRamp } from '../utils/ColorRamp';
 import { useTerrainState } from '../hooks/useTerrainState/useTerrainState';
 import useGlobalState from '../hooks/useGlobalState';
 
 export type ScenePointerEvent = ThreeEvent<PointerEvent> & { lngLat: LngLat, altitude: number };
 
 export default function Scene({
-  showPoints,
   onMouseMove,
   onMouseLeave,
   showFeatureInfo,
 }: {
-  colorRamp?: ColorRamp
-  showContour: boolean;
-  showSlope: boolean;
-  showPoints: boolean;
   onMouseMove: (event: ScenePointerEvent) => void;
   onMouseLeave: () => void;
   showFeatureInfo: (feature: FeatureHoverEventData | null, focusFeature?: boolean) => void;
@@ -34,7 +28,7 @@ export default function Scene({
 
   const terrain = useTerrainState();
 
-  const { setMouseScreenPos } = useGlobalState();
+  const { setMouseScreenPos, state: { showPoints } } = useGlobalState();
 
   const handleMouseMove = useCallback((event: ScenePointerEvent) => {
     setMouseScreenPos(new Vector2(event.clientX, event.clientY));
@@ -53,10 +47,18 @@ export default function Scene({
   }, [onMouseLeave]);
 
   const handleFeatureHover = useCallback((feature: FeatureHoverEventData | null) => {
+    if (feature?.hidden) {
+      return;
+    }
+
     showFeatureInfo(feature);
   }, [showFeatureInfo]);
 
   const handleFeatureSelect = useCallback((feature: FeatureHoverEventData | null) => {
+    if (feature?.hidden) {
+      return;
+    }
+
     if (!feature) {
       showFeatureInfo(null);
       return;
@@ -77,11 +79,16 @@ export default function Scene({
       <QueryPositionCtxProvider debug={true}>
         <directionalLight position={lightPosition} intensity={6} />
         <ambientLight intensity={2} />
+        <Features
+          origin={terrain.origin}
+          onFeatureHover={handleFeatureHover}
+          onFeatureSelect={handleFeatureSelect}
+        />
         <points
           visible={showPoints}
           name="terrain-points"
           material={new PointsMaterial({ color: 'blue' })}
-          renderOrder={99} geometry={terrain.terrainGeometry}
+          geometry={terrain.terrainGeometry}
         />
         <mesh
           name="terrain-mesh"
@@ -91,13 +98,7 @@ export default function Scene({
           onClick={e => console.log("terrain mesh click", e)}
           renderOrder={1}
           geometry={terrain.terrainGeometry}
-          material={terrain.terrainMaterial}
-        />
-
-        <Features
-          origin={terrain.origin}
-          onFeatureHover={handleFeatureHover}
-          onFeatureSelect={handleFeatureSelect}
+          material={terrain.activeMaterial}
         />
         <Compass />
         <UserPosition />

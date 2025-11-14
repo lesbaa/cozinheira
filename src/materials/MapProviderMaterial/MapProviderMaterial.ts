@@ -1,10 +1,9 @@
-// @ts-nocheck
-import type { LngLatBounds } from "maplibre-gl";
+// import { LngLatBounds } from "maplibre-gl";
 import { GLSL3, ShaderMaterial } from "three";
 import vertexShader from './MapProviderMaterial.vert.glsl?raw';
 import fragmentShader from './MapProviderMaterial.frag.glsl?raw';
 import * as turf from '@turf/turf';
-import { Map as SDKMap, MapStyle, MapStyleVariant, type CenterZoomBearing } from "@maptiler/sdk";
+import { Map as SDKMap, MapStyle, MapStyleVariant, type CenterZoomBearing, LngLatBounds, LngLat } from "@maptiler/sdk";
 
 // function constructBoundsUrl({
 //   center,
@@ -25,12 +24,12 @@ import { Map as SDKMap, MapStyle, MapStyleVariant, type CenterZoomBearing } from
 // loader.setPath(import.meta.env.VITE_MAP_PROVIDER_URL);
 
 interface MapProviderMaterialParameters {
-  bounds: LngLatBounds;
+  bounds: [number, number, number, number];
   style?: MapStyleVariant;
 }
 
 interface MLMapParameters {
-  bounds: LngLatBounds;
+  bounds: [number, number, number, number];
   style?: MapStyleVariant;
 }
 
@@ -40,8 +39,10 @@ class MLMap {
   private bounds: LngLatBounds;
 
   constructor({ bounds, style = MapStyle.SATELLITE.DEFAULT as MapStyleVariant }: MLMapParameters) {
-    this.bounds = bounds;
-    console.count('+++++++++++======== MLMap constructor');
+    this.bounds = new LngLatBounds(
+      new LngLat(bounds[0], bounds[1]),
+      new LngLat(bounds[2], bounds[3]),
+    );
     this.initContainer();
     
     this.map = new SDKMap({
@@ -57,27 +58,30 @@ class MLMap {
       geolocateControl: false,
     });
 
-    this.map.on('load', () => {
-      const cam = this.map.cameraForBounds(bounds) as CenterZoomBearing;
+    this.initMap();
+  }
 
-      this.map.jumpTo(cam);
-      this.map.on('load', () => {
-      });
-    });
+  async initMap() {
+    await this.map.onReadyAsync();
+    const cam = this.map.cameraForBounds(this.bounds) as CenterZoomBearing;
+
+    this.map.jumpTo(cam);
   }
 
   getMap() {
     return this.map
   }
 
-  calculateDimensions(bounds: LngLatBounds, scale: number = 10000): [number, number] {
+  calculateDimensions(bounds: LngLatBounds, scale: number = 5000): [number, number] {
     const ne = bounds.getNorthEast();
     const sw = bounds.getSouthWest();
+
     const width = turf.distance(
       turf.point([ne.lng, ne.lat]),
       turf.point([ne.lng, sw.lat]),
       'kilometers',
     );
+
     const height = turf.distance(
       turf.point([ne.lng, ne.lat]),
       turf.point([sw.lng, ne.lat]),
@@ -94,7 +98,7 @@ class MLMap {
 
     this.container.style.position = 'absolute';
     // this.container.style.display = 'none';
-    // this.container.style.top = `${-height + 100}px`;
+    this.container.style.top = `${-height - 100}px`;
     this.container.style.width = `${width}px`;
     this.container.style.height = `${height}px`;
 
@@ -108,10 +112,10 @@ class MLMap {
 }
 
 export default class MapProviderMaterial extends ShaderMaterial {
+  private mapInstance: MLMap;
   constructor({ bounds, style }: MapProviderMaterialParameters) {
-    // const neMeters = projectLngLatToMeters([ origin[0], origin[1] ], [bounds.getNorthEast().lng, bounds.getNorthEast().lat]);
-    const map = new MLMap({ bounds, style });
 
+    const map = new MLMap({ bounds, style });
     super({
       glslVersion: GLSL3,
       vertexShader,
@@ -120,5 +124,10 @@ export default class MapProviderMaterial extends ShaderMaterial {
         uTexture: { value: null },
       }
     });
+    this.mapInstance = map;
+  }
+
+  destroy() {
+    this.mapInstance.destroy();
   }
 }

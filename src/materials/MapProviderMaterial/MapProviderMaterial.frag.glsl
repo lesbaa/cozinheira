@@ -4,7 +4,9 @@ in vec3 vNormal;
 
 uniform sampler2D uTexture;
 
+out vec4 outColor;
+
 void main() {
-    vec4 color = texture(uTexture, vPosition);
-    gl_FragColor = color;
+    vec4 color = texture2D(uTexture, vPosition.xy);
+    outColor = color;
 }

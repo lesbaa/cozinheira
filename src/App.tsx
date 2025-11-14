@@ -1,12 +1,13 @@
 import { Canvas } from '@react-three/fiber'
 import { MapControls } from '@react-three/drei'
 import Scene, { type ScenePointerEvent } from './components/Scene'
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { LngLat } from '@maptiler/sdk';
-import type { FeatureHoverEventData } from './components/Features';
+import type { FeatureHoverEventData } from './components/Features/Features';
 import { TerrainCtxProvider } from './hooks/useTerrainState/useTerrainState';
-import ColorRamps from './utils/ColorRamp';
 import { GlobalStateCtxProvider } from './hooks/useGlobalState';
+import Menu from './components/Menu';
+import { FeatureMeshesCtxProvider } from './hooks/useFeatureMeshes';
 
 export type PopoverState = {
   lngLat: LngLat;
@@ -17,11 +18,6 @@ export type PopoverState = {
 }
 
 export default function App() {
-  const [showContour, setShowContour] = useState(false);
-  const [showPoints, setShowPoints] = useState(false);
-  const [showSlope, setShowSlope] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
-
   const [popoverState, setPopoverState] = useState<PopoverState>({
     lngLat: new LngLat(0, 0),
     altitude: 0,
@@ -79,49 +75,23 @@ export default function App() {
     }))
   }, []);
 
-  const stableColorRamp = useMemo(() => ColorRamps.Lumo, [])
-
-// console.count('+++++++++++======== App rendered');
-
   return (
     <GlobalStateCtxProvider>
-      <button className="hamburger" onClick={() => setShowOptions(v => !v)}></button>
-      <div className={["options", showOptions ? "show" : "hide"].join(" ")}>
-        <button className="close-options" onClick={() => setShowOptions(false)}></button>
-        <div className="options-list">
-          <div>
-          <input type="checkbox" checked={showContour} onChange={() => setShowContour(v => !v)} />
-          <label htmlFor="showContour">Show Contour</label>
-          </div>
-          <div>
-          <input type="checkbox" checked={showPoints} onChange={() => setShowPoints(v => !v)} />
-          <label htmlFor="showContour">Show Control Points</label>
-          </div>
-          <div>
-          <input type="checkbox" checked={showSlope} onChange={() => setShowSlope(v => !v)} />
-          <label htmlFor="showSlope">Show Slope</label>
-          </div>
-        </div>
-      </div>
+      <Menu />
       <Canvas
         camera={{
           position: [0, 200, 0],
         }}
         onContextMenu={handleContextMenu}
       >
-        <TerrainCtxProvider
-          colorRamp={stableColorRamp}
-          showContour={showContour}
-          showSlope={showSlope}
-        >
-          <Scene
-            showFeatureInfo={showFeatureInfo}
-            showContour={showContour}
-            showPoints={showPoints}
-            showSlope={showSlope}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={resetPopover}
-          />
+        <TerrainCtxProvider>
+          <FeatureMeshesCtxProvider>
+            <Scene
+              showFeatureInfo={showFeatureInfo}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={resetPopover}
+            />
+          </FeatureMeshesCtxProvider>
         </TerrainCtxProvider>
         <MapControls />
       </Canvas>

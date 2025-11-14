@@ -1,5 +1,5 @@
 import Delaunator from 'delaunator';
-import { projectLngLatToMeters } from './project';
+import { projectLngLatToMeters, type Point2D } from './project';
 import * as turf from '@turf/turf';
 import { isCloseTo } from './utils/math';
 
@@ -7,7 +7,44 @@ const allowedGeometryTypes = ['MultiPoint', 'LineString', 'Polygon'];
 
 type AllowedGeometry = GeoJSON.MultiPoint | GeoJSON.LineString | GeoJSON.Polygon;
 
-export default function delaunate(geojson: GeoJSON.FeatureCollection, featureName: string = 'topography', cullOddAltitudes: boolean = false) {
+const memoizedResults = new Map<MemoizedKey, ReturnType<typeof delaunate>>();
+
+type MemoizedKey = {
+  geojson: GeoJSON.FeatureCollection;
+  featureName: string;
+  cullOddAltitudes: boolean;
+}
+
+type DelaunateResult = {
+  positions: Float32Array;
+  indices: number[];
+  normals: Float32Array;
+  maxAltitude: number;
+  minAltitude: number;
+  origin: [number, number, number];
+  lngLats: number[][];
+  bounds: {
+    min: Point2D;
+    max: Point2D;
+  };
+
+}
+
+export default function delaunate(
+  geojson: GeoJSON.FeatureCollection,
+  featureName: string = 'topography',
+  cullOddAltitudes: boolean = false
+): DelaunateResult {
+  const memoKey: MemoizedKey = {
+    geojson,
+    featureName,
+    cullOddAltitudes,
+  }
+
+  if (memoizedResults.has(memoKey)) {
+    return memoizedResults.get(memoKey)!;
+  }
+
   const points = [];
   const altitudes: Record<string, number> = {};
   const vertices: number[] = [];

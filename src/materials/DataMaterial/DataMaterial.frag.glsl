@@ -10,7 +10,6 @@ uniform vec3 uPerimeterPoints[MAX_POLYGON_VERTICES];
 uniform int uNumPerimeterPoints;
 uniform sampler2D uColorRamp;
 
-in vec3 vWorldPosition;
 in vec3 vPosition;
 in vec3 vNormal;
 

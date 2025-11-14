@@ -1,11 +1,9 @@
 import { createContext, useContext, useEffect, useMemo } from "react";
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, FloatType, GLSL3, Group, Mesh, Points, RGBAFormat, ShaderMaterial, Vector3 } from "three";
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, FloatType, GLSL3, Group, Mesh, MeshBasicMaterial, Points, RGBAFormat, ShaderMaterial, Vector3 } from "three";
 import cozinheira from '../../data/cozinheira-multi-point.json' with { type: 'json' };
 import { projectLngLatToMeters, type Point2D } from "../../project";
 import delaunate from "../../delaunate";
 import DataMaterial from "../../materials/DataMaterial";
-import type { ColorRamp } from "../../utils/ColorRamp";
-import ColorRamps from "../../utils/ColorRamp";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useFBO } from "@react-three/drei";
 import vertexShader from "./shaders/height.vert.glsl?raw";
@@ -14,7 +12,6 @@ import useGlobalState from "../useGlobalState";
 import MapProviderMaterial from "../../materials/MapProviderMaterial/MapProviderMaterial";
 import { bbox } from "@turf/turf";
 // import { LngLatBounds } from "@maptiler/sdk";
-import { LngLat, LngLatBounds } from "maplibre-gl";
 // import MapProviderMaterial from "../../materials/MapProviderMaterial/MapProviderMaterial";
 // import { LngLatBounds } from "@maptiler/sdk";
 // import bbox from "@turf/bbox";
@@ -23,7 +20,9 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 export type TerrainContextValue = {
   terrainGeometry: BufferGeometry,
   terrainMaterial: ShaderMaterial,
+  mapMaterial: MapProviderMaterial | ShaderMaterial,
   terrainPickingMaterial: ShaderMaterial,
+  activeMaterial?: ShaderMaterial,
   origin: [number, number, number],
   lngLats: number[][],
   minAltitude: number,
@@ -38,7 +37,9 @@ export type TerrainContextValue = {
 const TerrainContext = createContext<TerrainContextValue>({
   terrainGeometry: new BufferGeometry(),
   terrainMaterial: new ShaderMaterial(),
+  mapMaterial: new ShaderMaterial(),
   terrainPickingMaterial: new ShaderMaterial(),
+  activeMaterial: undefined,
   origin: [0, 0, 0],
   lngLats: [],
   minAltitude: 0,
@@ -52,17 +53,25 @@ const TerrainContext = createContext<TerrainContextValue>({
 
 export function TerrainCtxProvider({
   children,
-  colorRamp = ColorRamps.Lumo,
-  showContour = false,
-  showSlope = false,
 }: {
   children: React.ReactNode;
-  colorRamp?: ColorRamp;
-  showContour?: boolean;
-  showSlope?: boolean;
 }) {
-  const terrainState = useTerrainStateInternal({ colorRamp, showContour, showSlope });
-  // console.count('+++++++++++======== TerrainCtxProvider 61');
+  const terrainState = useTerrainStateInternal();
+
+  const gl = useThree((state) => state.gl);
+  useEffect(() => {
+    if (gl) {
+      try {
+
+      const ctx = gl.getContext();
+      ctx?.getExtension('EXT_color_buffer_float');
+      ctx?.getExtension('EXT_float_blend');
+    } catch {
+      console.error('EXT_color_buffer_float and EXT_float_blend extensions not supported');
+    }
+  }
+  }, [gl]);
+
   const value = useMemo(() => terrainState, [terrainState]);
   return (
     <TerrainContext.Provider value={value}>
@@ -71,24 +80,12 @@ export function TerrainCtxProvider({
   )
 }
 
-function useTerrainStateInternal({
-  colorRamp = ColorRamps.Lumo,
-  showContour = false,
-  showSlope = false,
-}: {
-  colorRamp?: ColorRamp;
-  showContour?: boolean;
-  showSlope?: boolean;
-} = {}): TerrainContextValue {
-  console.count('+++++++++++======== called useTerrainStateInternal');
+const materialCache = new Map<string, ShaderMaterial | MapProviderMaterial>();
+const geometryCache = new Map<string, BufferGeometry>();
 
-  useEffect(() => {
-    console.log('+++++++++++======== MOUNTED TerrainCtxProvider');
-    return () => console.log('+++++++++++======== UNMOUNTED TerrainCtxProvider');
-  }, []);
-
+function useTerrainStateInternal(): TerrainContextValue {
+  const { state: { colorRamp, showContour, terrainMaterial } } = useGlobalState();
   const terrain = useMemo(() => {
-    console.count('+++++++++++======== memoized terrain');
     const {
       positions: vertices,
       lngLats,
@@ -100,7 +97,7 @@ function useTerrainStateInternal({
       bounds,
     } = delaunate(cozinheira as GeoJSON.FeatureCollection<GeoJSON.Geometry>, 'topography', true);
 
-    const terrainGeometry = new BufferGeometry();
+    const terrainGeometry = geometryCache.get('terrain') || new BufferGeometry();
     terrainGeometry.setIndex(indices);
     terrainGeometry.setAttribute('position', new BufferAttribute(vertices, 3));
     terrainGeometry.setAttribute('normal', new BufferAttribute(normals, 3));
@@ -118,7 +115,7 @@ function useTerrainStateInternal({
       return new Vector3(-x, 0, z);
     });
 
-    const terrainMaterial = new DataMaterial({
+    const terrainMaterial = materialCache.get('terrain') || new DataMaterial({
       maxValue: maxAltitude,
       minValue: minAltitude,
       perimiter: perimiterVertices,
@@ -126,15 +123,21 @@ function useTerrainStateInternal({
       contour: false,
       contourColor: new Color('#ffffff'),
     })
+    
+    terrainMaterial.name = 'terrain';
 
-    // const mapMaterial = new MapProviderMaterial({
-    //   bounds: new LngLatBounds(
-    //     new LngLat(lngLatBounds[0], lngLatBounds[1]),
-    //     new LngLat(lngLatBounds[2], lngLatBounds[3]),
-    //   ),
-    // })
+    materialCache.set('terrain', terrainMaterial);
 
-    const terrainPickingMaterial = new ShaderMaterial({
+    // const mapMaterial = null;
+    const mapMaterial = materialCache.get('map') || new MapProviderMaterial({
+      bounds: lngLatBounds as [number, number, number, number],
+    })
+
+    mapMaterial.name = 'map';
+
+    materialCache.set('map', mapMaterial);
+
+    const terrainPickingMaterial = materialCache.get('picking') || new ShaderMaterial({
       glslVersion: GLSL3,
       vertexShader,
       fragmentShader: fragmentShaderPicker,
@@ -146,6 +149,8 @@ function useTerrainStateInternal({
       side: DoubleSide,
     })
 
+    terrainPickingMaterial.name = 'picking';
+
     // const cubes = []
 
     // for (let i = 0; i < vertices.length; i += 3) {
@@ -155,6 +160,7 @@ function useTerrainStateInternal({
     return {
       terrainGeometry,
       terrainMaterial,
+      mapMaterial,
       terrainPickingMaterial,
       origin,
       lngLats,
@@ -164,6 +170,18 @@ function useTerrainStateInternal({
     };
 
   }, [colorRamp]);
+
+  // useEffect(() => {
+  //   return () => {
+  //     materialCache.forEach((material) => {
+  //       material.dispose?.();
+  //       (material as MapProviderMaterial).destroy?.();
+  //     });
+  //     geometryCache.forEach((geometry) => {
+  //       geometry.dispose();
+  //     });
+  //   };
+  // }, []);
 
   const dpr = useThree((state) => state.gl.getPixelRatio());
 
@@ -241,15 +259,23 @@ function useTerrainStateInternal({
   })
 
   useEffect(() => {
-    if (terrain.terrainMaterial) {
+    if (terrain.terrainMaterial instanceof ShaderMaterial) {
       terrain.terrainMaterial.uniforms.uContour.value = showContour ? 1 : 0;
       terrain.terrainMaterial.needsUpdate = true;
-      terrain.terrainMaterial.uniforms.uShowSlope.value = showSlope ? 1 : 0;
+      terrain.terrainMaterial.uniforms.uShowSlope.value = terrainMaterial === 'slopeMap' ? 1 : 0;
     }
-  }, [showContour, terrain.terrainMaterial, showSlope])
+  }, [showContour, terrain.terrainMaterial, terrainMaterial])
 
-  // return useMemo(() => { console.count('+++++++++++======== returning terrain state'); return { ...terrain, pixelReadBuffer } }, [terrain, pixelReadBuffer]);
-  return useMemo(() => ({ ...terrain, pixelReadBuffer }), [terrain, pixelReadBuffer]);
+  const activeMaterial = useMemo(() => {
+    if (terrainMaterial === 'heightMap') { 
+      return terrain.terrainMaterial;
+    }
+    if (terrainMaterial === 'mapMaterial') {
+      return terrain.mapMaterial;
+    }
+  }, [terrain.terrainMaterial, terrain.mapMaterial, terrainMaterial]);
+
+  return useMemo(() => ({ ...terrain, pixelReadBuffer, activeMaterial }), [terrain, pixelReadBuffer, activeMaterial]);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

@@ -1,12 +1,13 @@
 import type { LngLat } from "@maptiler/sdk";
-import type { FeatureHoverEventData } from "../../components/Features";
+import type { FeatureHoverEventData } from "../../components/Features/Features";
 import type { ColorRamp } from "../../utils/ColorRamp";
 import type { Vector2 } from "three";
 
 export type GlobalState = {
     showContour: boolean,
     showPoints: boolean,
-    showSlope: boolean,
+    showOptions: boolean,
+    terrainMaterial: 'heightMap' | 'mapMaterial' | 'slopeMap',
     popoverState: {
       lngLat: LngLat,
       altitude: number,
@@ -23,7 +24,7 @@ export type GlobalStateAction = {
   type: 'setValue'
   payload: {
     key: keyof GlobalState;
-    value: StateValue;
+    value: GlobalState[keyof GlobalState];
   };
 } | {
   type: 'resetPopover';
@@ -39,7 +40,7 @@ export type StateValue = boolean | number | string | null | undefined;
 
 export type GlobalStateContextValue = {
   state: GlobalState;
-  setValue: (key: keyof GlobalState, value: StateValue) => void;
+  setValue: <K extends keyof GlobalState>(key: K, value: GlobalState[K] | ((currentValue: GlobalState[K]) => GlobalState[K])) => void;
   resetPopover: () => void;
   setFeatureInfo: (feature: FeatureHoverEventData | null) => void;
   setMouseScreenPos: (pos: Vector2) => void;

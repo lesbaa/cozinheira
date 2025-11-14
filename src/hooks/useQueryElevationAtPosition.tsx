@@ -53,7 +53,7 @@ export function useQueryElevationAtPositionState({
     const out =  fitOrthographicCamToSelectionAndReturnBounds(cam, pickerMesh);
     scene.add(new Box3Helper(out.boundingBox.clone(), 0xff0000));
     return out;
-  }, [cam, pickerMesh]);
+  }, [cam, pickerMesh, scene]);
 
   const dpr = useThree((state) => state.gl.getPixelRatio());
 
@@ -161,7 +161,7 @@ export function useQueryElevationAtPositionState({
           </ScreenSizer>
         </Billboard>
       ) : null
-  }), [debug, ready, target.texture, target.width, target.height]);
+  }), [debug, ready, target.texture, target.width, target.height, queryElevation]);
 }
 
 export default function useQueryElevationAtPosition() {

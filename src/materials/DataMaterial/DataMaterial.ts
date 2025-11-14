@@ -21,41 +21,44 @@ export default class DataMaterial extends ShaderMaterial {
     perimiter,
     colorRamp,
   }: DataMaterialParameters) {
-      const c = document.createElement('canvas');
-      const ctx = c.getContext('2d');
-      if (!ctx) {
-        throw new Error('Failed to get context');
-      };
-      const colorRampCanvas = { ctx , c };
-  
-      c.width = 1;
-      c.height = 256;
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to get context');
+    };
+    const colorRampCanvas = { ctx , c };
 
-      const colorRampTexture = new CanvasTexture();
-  
-      if (!colorRampCanvas) return;
-  
-      const gradient = colorRampCanvas.ctx.createLinearGradient(0, 0, 0, 256);
-  
-      colorRamp.forEach((stop) => {
-        gradient.addColorStop(stop.value, stop.color);
-      });
-  
-      colorRampCanvas.ctx.fillStyle = gradient;
-      colorRampCanvas.ctx.fillRect(0, 0, 1, 256);
-  
-      colorRampTexture.image = colorRampCanvas.c;
-      colorRampTexture.needsUpdate = true;
+    c.width = 1;
+    c.height = 256;
+
+    const colorRampTexture = new CanvasTexture();
+
+    if (!colorRampCanvas) return;
+
+    const gradient = colorRampCanvas.ctx.createLinearGradient(0, 0, 0, 256);
+
+    colorRamp.forEach((stop) => {
+      gradient.addColorStop(stop.value, stop.color);
+    });
+
+    colorRampCanvas.ctx.fillStyle = gradient;
+    colorRampCanvas.ctx.fillRect(0, 0, 1, 256);
+
+    colorRampTexture.image = colorRampCanvas.c;
+    colorRampTexture.needsUpdate = true;
 
     super({
       glslVersion: GLSL3,
       vertexShader,
-      fragmentShader: `#define MAX_POLYGON_VERTICES ${perimiter.length}\n${fragmentShader}`,
+      defines: {
+        MAX_POLYGON_VERTICES: perimiter.length,
+      },
+      fragmentShader,
       uniforms: {
         uMaxValue: { value: maxValue },
         uMinValue: { value: minValue },
         uContour: { value: false },
-        uContourColor: { value: new Color('white') },
+        uContourColor: { value: [1.0, 1.0, 1.0, 1.0] },
         uShowSlope: { value: false },
         uNumPerimeterPoints: { value: perimiter.length },
         uPerimeterPoints: { value: perimiter },
